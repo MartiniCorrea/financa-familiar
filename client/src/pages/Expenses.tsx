@@ -1,0 +1,243 @@
+import { trpc } from "@/lib/trpc";
+import { formatCurrency, formatDate, getCategoryInfo, EXPENSE_CATEGORIES, getCurrentMonth, getCurrentYear, getTodayString } from "@/lib/finance";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Pencil, Trash2, TrendingDown, Search } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
+const MONTHS = Array.from({ length: 12 }, (_, i) => {
+  const d = new Date(2024, i, 1);
+  return { value: i + 1, label: d.toLocaleDateString('pt-BR', { month: 'long' }) };
+});
+const YEARS = [2023, 2024, 2025, 2026];
+const PAYMENT_METHODS = [
+  { value: 'dinheiro', label: 'Dinheiro' }, { value: 'debito', label: 'Débito' },
+  { value: 'credito', label: 'Crédito' }, { value: 'pix', label: 'PIX' },
+  { value: 'transferencia', label: 'Transferência' }, { value: 'boleto', label: 'Boleto' }, { value: 'outros', label: 'Outros' },
+];
+
+type ExpenseForm = {
+  description: string; amount: string; parentCategory: string; date: string;
+  paymentMethod: string; installments: string; notes: string;
+};
+
+const emptyForm: ExpenseForm = {
+  description: '', amount: '', parentCategory: 'outros', date: getTodayString(),
+  paymentMethod: 'outros', installments: '1', notes: '',
+};
+
+export default function Expenses() {
+  const [month, setMonth] = useState(getCurrentMonth());
+  const [year, setYear] = useState(getCurrentYear());
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [form, setForm] = useState<ExpenseForm>(emptyForm);
+
+  const utils = trpc.useUtils();
+  const { data: expenses = [], isLoading } = trpc.expenses.list.useQuery({ month, year });
+  const createMutation = trpc.expenses.create.useMutation({
+    onSuccess: () => { utils.expenses.list.invalidate(); utils.dashboard.summary.invalidate(); setOpen(false); setForm(emptyForm); toast.success("Despesa adicionada!"); },
+    onError: () => toast.error("Erro ao salvar despesa"),
+  });
+  const updateMutation = trpc.expenses.update.useMutation({
+    onSuccess: () => { utils.expenses.list.invalidate(); utils.dashboard.summary.invalidate(); setOpen(false); setEditId(null); setForm(emptyForm); toast.success("Despesa atualizada!"); },
+    onError: () => toast.error("Erro ao atualizar despesa"),
+  });
+  const deleteMutation = trpc.expenses.delete.useMutation({
+    onSuccess: () => { utils.expenses.list.invalidate(); utils.dashboard.summary.invalidate(); toast.success("Despesa removida!"); },
+    onError: () => toast.error("Erro ao remover despesa"),
+  });
+
+  const filtered = expenses.filter(e =>
+    e.description.toLowerCase().includes(search.toLowerCase()) &&
+    (categoryFilter === 'all' || e.parentCategory === categoryFilter)
+  );
+  const total = filtered.reduce((sum, e) => sum + parseFloat(e.amount), 0);
+
+  function handleSubmit(evt: React.FormEvent) {
+    evt.preventDefault();
+    if (!form.description || !form.amount || !form.date) return toast.error("Preencha os campos obrigatórios");
+    const data = { ...form, parentCategory: form.parentCategory as any, paymentMethod: form.paymentMethod as any, installments: parseInt(form.installments) || 1 };
+    if (editId) updateMutation.mutate({ id: editId, ...data });
+    else createMutation.mutate(data);
+  }
+
+  function openEdit(expense: any) {
+    setEditId(expense.id);
+    setForm({
+      description: expense.description, amount: expense.amount,
+      parentCategory: expense.parentCategory, date: typeof expense.date === 'string' ? expense.date : new Date(expense.date).toISOString().split('T')[0],
+      paymentMethod: expense.paymentMethod ?? 'outros', installments: String(expense.installments ?? 1), notes: expense.notes ?? '',
+    });
+    setOpen(true);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>Despesas</h1>
+          <p className="text-muted-foreground text-sm mt-1">Controle todos os seus gastos</p>
+        </div>
+        <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); } }}>
+          <DialogTrigger asChild>
+            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Plus className="w-4 h-4 mr-2" /> Nova Despesa
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="text-foreground">{editId ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-foreground">Descrição *</Label>
+                <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Ex: Supermercado" className="bg-input border-border text-foreground" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-foreground">Valor (R$) *</Label>
+                  <Input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0,00" className="bg-input border-border text-foreground" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-foreground">Data *</Label>
+                  <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="bg-input border-border text-foreground" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground">Categoria</Label>
+                <Select value={form.parentCategory} onValueChange={v => setForm(f => ({ ...f, parentCategory: v }))}>
+                  <SelectTrigger className="bg-input border-border text-foreground"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {EXPENSE_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-foreground">Forma de Pagamento</Label>
+                  <Select value={form.paymentMethod} onValueChange={v => setForm(f => ({ ...f, paymentMethod: v }))}>
+                    <SelectTrigger className="bg-input border-border text-foreground"><SelectValue /></SelectTrigger>
+                    <SelectContent>{PAYMENT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-foreground">Parcelas</Label>
+                  <Input type="number" min="1" max="48" value={form.installments} onChange={e => setForm(f => ({ ...f, installments: e.target.value }))} className="bg-input border-border text-foreground" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground">Observações</Label>
+                <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Opcional" className="bg-input border-border text-foreground" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setOpen(false)}>Cancelar</Button>
+                <Button type="submit" className="flex-1 bg-primary text-primary-foreground" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {editId ? 'Salvar' : 'Adicionar'}
+                </Button>
+              </div>
+            </form>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-wrap gap-3">
+        <div className="relative flex-1 min-w-48">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar despesas..." className="pl-9 bg-card border-border text-foreground" />
+        </div>
+        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <SelectTrigger className="w-40 bg-card border-border"><SelectValue placeholder="Categoria" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas</SelectItem>
+            {EXPENSE_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={String(month)} onValueChange={v => setMonth(Number(v))}>
+          <SelectTrigger className="w-36 bg-card border-border"><SelectValue /></SelectTrigger>
+          <SelectContent>{MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label.charAt(0).toUpperCase() + m.label.slice(1)}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
+          <SelectTrigger className="w-24 bg-card border-border"><SelectValue /></SelectTrigger>
+          <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+
+      {/* Summary */}
+      <Card className="bg-card border-border">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-400/10 flex items-center justify-center">
+                <TrendingDown className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Total do Período</p>
+                <p className="text-2xl font-bold text-red-400">{formatCurrency(total)}</p>
+              </div>
+            </div>
+            <Badge variant="secondary" className="text-muted-foreground">{filtered.length} {filtered.length === 1 ? 'despesa' : 'despesas'}</Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* List */}
+      <Card className="bg-card border-border">
+        <CardContent className="p-0">
+          {isLoading ? (
+            <div className="p-8 text-center text-muted-foreground">Carregando...</div>
+          ) : filtered.length === 0 ? (
+            <div className="p-8 text-center">
+              <TrendingDown className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">Nenhuma despesa encontrada</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {filtered.map(expense => {
+                const cat = getCategoryInfo(expense.parentCategory);
+                const isInstallment = (expense.installments ?? 1) > 1;
+                return (
+                  <div key={expense.id} className="flex items-center justify-between p-4 hover:bg-accent/20 transition-colors group">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0" style={{ backgroundColor: cat.color + '20' }}>
+                        {cat.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{expense.description}</p>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-xs text-muted-foreground">{formatDate(expense.date as any)}</span>
+                          <Badge variant="outline" className="text-xs px-1.5 py-0" style={{ borderColor: cat.color + '40', color: cat.color }}>{cat.label}</Badge>
+                          {isInstallment && <Badge variant="secondary" className="text-xs px-1.5 py-0">{expense.currentInstallment}/{expense.installments}x</Badge>}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0 ml-3">
+                      <span className="text-base font-semibold text-red-400">{formatCurrency(expense.amount)}</span>
+                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(expense)}>
+                          <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteMutation.mutate({ id: expense.id })}>
+                          <Trash2 className="w-3.5 h-3.5 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

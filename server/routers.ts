@@ -1,28 +1,254 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, router } from "./_core/trpc";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { z } from "zod";
+import * as db from "./db";
 
+// ─── Shared Schemas ───────────────────────────────────────────────────────────
+const monthYearSchema = z.object({ month: z.number().min(1).max(12), year: z.number().min(2000).max(2100) });
+
+// ─── Family Members Router ────────────────────────────────────────────────────
+const familyMembersRouter = router({
+  list: protectedProcedure.query(({ ctx }) => db.getFamilyMembers(ctx.user.id)),
+  create: protectedProcedure.input(z.object({
+    name: z.string().min(1).max(100),
+    relationship: z.enum(["titular","conjuge","filho","filha","pai","mae","outro"]).default("titular"),
+    color: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.createFamilyMember({ ...input, userId: ctx.user.id })),
+  update: protectedProcedure.input(z.object({
+    id: z.number(), name: z.string().optional(), relationship: z.enum(["titular","conjuge","filho","filha","pai","mae","outro"]).optional(), color: z.string().optional(),
+  })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateFamilyMember(id, ctx.user.id, data); }),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteFamilyMember(input.id, ctx.user.id)),
+});
+
+// ─── Incomes Router ───────────────────────────────────────────────────────────
+const incomesRouter = router({
+  list: protectedProcedure.input(z.object({ month: z.number().optional(), year: z.number().optional(), memberId: z.number().optional() }).optional())
+    .query(({ ctx, input }) => db.getIncomes(ctx.user.id, input)),
+  create: protectedProcedure.input(z.object({
+    description: z.string().min(1).max(255),
+    amount: z.string(),
+    category: z.enum(["salario","renda_extra","pensao","aluguel","investimento","freelance","bonus","dividendos","outros"]),
+    date: z.string(),
+    familyMemberId: z.number().optional(),
+    isRecurring: z.boolean().optional(),
+    recurringDay: z.number().optional(),
+    notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.createIncome({ ...input, userId: ctx.user.id } as any)),
+  update: protectedProcedure.input(z.object({
+    id: z.number(), description: z.string().optional(), amount: z.string().optional(),
+    category: z.enum(["salario","renda_extra","pensao","aluguel","investimento","freelance","bonus","dividendos","outros"]).optional(),
+    date: z.string().optional(), familyMemberId: z.number().nullable().optional(),
+    isRecurring: z.boolean().optional(), notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateIncome(id, ctx.user.id, data as any); }),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteIncome(input.id, ctx.user.id)),
+});
+
+// ─── Expenses Router ──────────────────────────────────────────────────────────
+const expensesRouter = router({
+  list: protectedProcedure.input(z.object({ month: z.number().optional(), year: z.number().optional(), memberId: z.number().optional(), category: z.string().optional() }).optional())
+    .query(({ ctx, input }) => db.getExpenses(ctx.user.id, input)),
+  create: protectedProcedure.input(z.object({
+    description: z.string().min(1).max(255),
+    amount: z.string(),
+    parentCategory: z.enum(["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros"]),
+    date: z.string(),
+    familyMemberId: z.number().optional(),
+    creditCardId: z.number().optional(),
+    categoryId: z.number().optional(),
+    paymentMethod: z.enum(["dinheiro","debito","credito","pix","transferencia","boleto","outros"]).optional(),
+    isRecurring: z.boolean().optional(),
+    installments: z.number().optional(),
+    currentInstallment: z.number().optional(),
+    notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.createExpense({ ...input, userId: ctx.user.id } as any)),
+  update: protectedProcedure.input(z.object({
+    id: z.number(), description: z.string().optional(), amount: z.string().optional(),
+    parentCategory: z.enum(["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros"]).optional(),
+    date: z.string().optional(), familyMemberId: z.number().nullable().optional(),
+    creditCardId: z.number().nullable().optional(), paymentMethod: z.enum(["dinheiro","debito","credito","pix","transferencia","boleto","outros"]).optional(),
+    notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateExpense(id, ctx.user.id, data as any); }),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteExpense(input.id, ctx.user.id)),
+  categories: protectedProcedure.query(({ ctx }) => db.getExpenseCategories(ctx.user.id)),
+});
+
+// ─── Bills Router ─────────────────────────────────────────────────────────────
+const billsRouter = router({
+  list: protectedProcedure.input(z.object({ type: z.enum(["pagar","receber"]).optional(), status: z.string().optional(), month: z.number().optional(), year: z.number().optional() }).optional())
+    .query(({ ctx, input }) => db.getBills(ctx.user.id, input)),
+  create: protectedProcedure.input(z.object({
+    description: z.string().min(1).max(255),
+    amount: z.string(),
+    type: z.enum(["pagar","receber"]),
+    dueDate: z.string(),
+    category: z.enum(["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros","salario","renda_extra"]).optional(),
+    familyMemberId: z.number().optional(),
+    isRecurring: z.boolean().optional(),
+    recurringDay: z.number().optional(),
+    notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.createBill({ ...input, userId: ctx.user.id } as any)),
+  update: protectedProcedure.input(z.object({
+    id: z.number(), description: z.string().optional(), amount: z.string().optional(),
+    dueDate: z.string().optional(), status: z.enum(["pendente","pago","vencido","cancelado"]).optional(),
+    notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateBill(id, ctx.user.id, data as any); }),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteBill(input.id, ctx.user.id)),
+  markAsPaid: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.markBillAsPaid(input.id, ctx.user.id)),
+});
+
+// ─── Credit Cards Router ──────────────────────────────────────────────────────
+const creditCardsRouter = router({
+  list: protectedProcedure.query(({ ctx }) => db.getCreditCards(ctx.user.id)),
+  create: protectedProcedure.input(z.object({
+    name: z.string().min(1).max(100),
+    bank: z.string().optional(),
+    lastFourDigits: z.string().max(4).optional(),
+    creditLimit: z.string(),
+    closingDay: z.number().min(1).max(31),
+    dueDay: z.number().min(1).max(31),
+    color: z.string().optional(),
+    familyMemberId: z.number().optional(),
+  })).mutation(({ ctx, input }) => db.createCreditCard({ ...input, userId: ctx.user.id })),
+  update: protectedProcedure.input(z.object({
+    id: z.number(), name: z.string().optional(), bank: z.string().optional(),
+    creditLimit: z.string().optional(), closingDay: z.number().optional(), dueDay: z.number().optional(), color: z.string().optional(),
+  })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateCreditCard(id, ctx.user.id, data); }),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteCreditCard(input.id, ctx.user.id)),
+});
+
+// ─── Budgets Router ───────────────────────────────────────────────────────────
+const budgetsRouter = router({
+  list: protectedProcedure.input(monthYearSchema).query(({ ctx, input }) => db.getBudgets(ctx.user.id, input.month, input.year)),
+  upsert: protectedProcedure.input(z.object({
+    category: z.enum(["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros"]),
+    month: z.number().min(1).max(12),
+    year: z.number().min(2000).max(2100),
+    plannedAmount: z.string(),
+  })).mutation(({ ctx, input }) => db.upsertBudget({ ...input, userId: ctx.user.id })),
+});
+
+// ─── Financial Goals Router ───────────────────────────────────────────────────
+const goalsRouter = router({
+  list: protectedProcedure.query(({ ctx }) => db.getFinancialGoals(ctx.user.id)),
+  create: protectedProcedure.input(z.object({
+    name: z.string().min(1).max(150),
+    description: z.string().optional(),
+    targetAmount: z.string(),
+    deadline: z.string().optional(),
+    type: z.enum(["curto_prazo","medio_prazo","longo_prazo"]),
+    category: z.enum(["emergencia","viagem","imovel","veiculo","educacao","aposentadoria","outros"]).optional(),
+    color: z.string().optional(),
+    icon: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.createFinancialGoal({ ...input, userId: ctx.user.id } as any)),
+  update: protectedProcedure.input(z.object({
+    id: z.number(), name: z.string().optional(), description: z.string().optional(),
+    targetAmount: z.string().optional(), deadline: z.string().nullable().optional(),
+    type: z.enum(["curto_prazo","medio_prazo","longo_prazo"]).optional(),
+    isCompleted: z.boolean().optional(), color: z.string().optional(),
+  })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateFinancialGoal(id, ctx.user.id, data as any); }),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteFinancialGoal(input.id, ctx.user.id)),
+  addContribution: protectedProcedure.input(z.object({
+    goalId: z.number(), amount: z.string(), date: z.string(), notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.addGoalContribution({ ...input, userId: ctx.user.id } as any)),
+});
+
+// ─── Shopping Router ──────────────────────────────────────────────────────────
+const shoppingRouter = router({
+  supermarkets: router({
+    list: protectedProcedure.query(({ ctx }) => db.getSupermarkets(ctx.user.id)),
+    create: protectedProcedure.input(z.object({ name: z.string().min(1).max(100), address: z.string().optional() }))
+      .mutation(({ ctx, input }) => db.createSupermarket({ ...input, userId: ctx.user.id })),
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteSupermarket(input.id, ctx.user.id)),
+  }),
+  lists: router({
+    list: protectedProcedure.query(({ ctx }) => db.getShoppingLists(ctx.user.id)),
+    create: protectedProcedure.input(z.object({
+      name: z.string().min(1).max(150), supermarketId: z.number().optional(), shoppingDate: z.string().optional(), notes: z.string().optional(),
+    })).mutation(({ ctx, input }) => db.createShoppingList({ ...input, userId: ctx.user.id } as any)),
+    update: protectedProcedure.input(z.object({
+      id: z.number(), name: z.string().optional(), status: z.enum(["ativa","concluida","cancelada"]).optional(),
+      actualTotal: z.string().optional(), supermarketId: z.number().optional(), shoppingDate: z.string().optional(),
+    })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateShoppingList(id, ctx.user.id, data as any); }),
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteShoppingList(input.id, ctx.user.id)),
+  }),
+  items: router({
+    list: protectedProcedure.input(z.object({ listId: z.number() })).query(({ ctx, input }) => db.getShoppingItems(input.listId, ctx.user.id)),
+    create: protectedProcedure.input(z.object({
+      listId: z.number(), name: z.string().min(1).max(150), quantity: z.string().optional(),
+      unit: z.string().optional(), estimatedPrice: z.string().optional(), category: z.string().optional(),
+    })).mutation(({ ctx, input }) => db.createShoppingItem({ ...input, userId: ctx.user.id })),
+    update: protectedProcedure.input(z.object({
+      id: z.number(), name: z.string().optional(), quantity: z.string().optional(),
+      actualPrice: z.string().optional(), isChecked: z.boolean().optional(),
+    })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateShoppingItem(id, ctx.user.id, data); }),
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteShoppingItem(input.id, ctx.user.id)),
+  }),
+  prices: router({
+    history: protectedProcedure.input(z.object({ productName: z.string().optional() }).optional())
+      .query(({ ctx, input }) => db.getPriceHistory(ctx.user.id, input?.productName)),
+    add: protectedProcedure.input(z.object({
+      productName: z.string().min(1).max(150), supermarketId: z.number(), price: z.string(), unit: z.string().optional(), recordedAt: z.string(),
+    })).mutation(({ ctx, input }) => db.addPriceRecord({ ...input, userId: ctx.user.id } as any)),
+  }),
+});
+
+// ─── Investments Router ───────────────────────────────────────────────────────
+const investmentsRouter = router({
+  list: protectedProcedure.query(({ ctx }) => db.getInvestments(ctx.user.id)),
+  create: protectedProcedure.input(z.object({
+    name: z.string().min(1).max(150),
+    type: z.enum(["poupanca","cdb","lci","lca","tesouro_direto","fundos","acoes","fii","criptomoedas","previdencia","outros"]),
+    institution: z.string().optional(),
+    initialAmount: z.string(),
+    currentAmount: z.string(),
+    investedAt: z.string(),
+    maturityDate: z.string().optional(),
+    annualRate: z.string().optional(),
+    isEmergencyFund: z.boolean().optional(),
+    notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.createInvestment({ ...input, userId: ctx.user.id } as any)),
+  update: protectedProcedure.input(z.object({
+    id: z.number(), name: z.string().optional(), currentAmount: z.string().optional(),
+    annualRate: z.string().optional(), notes: z.string().optional(), isEmergencyFund: z.boolean().optional(),
+  })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateInvestment(id, ctx.user.id, data); }),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteInvestment(input.id, ctx.user.id)),
+  addTransaction: protectedProcedure.input(z.object({
+    investmentId: z.number(), type: z.enum(["aporte","resgate","rendimento"]), amount: z.string(), date: z.string(), notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.addInvestmentTransaction({ ...input, userId: ctx.user.id } as any)),
+  transactions: protectedProcedure.input(z.object({ investmentId: z.number() }))
+    .query(({ ctx, input }) => db.getInvestmentTransactions(input.investmentId, ctx.user.id)),
+});
+
+// ─── Dashboard Router ─────────────────────────────────────────────────────────
+const dashboardRouter = router({
+  summary: protectedProcedure.input(monthYearSchema).query(({ ctx, input }) => db.getDashboardSummary(ctx.user.id, input.month, input.year)),
+  evolution: protectedProcedure.input(z.object({ months: z.number().min(3).max(24).optional() }).optional())
+    .query(({ ctx, input }) => db.getMonthlyEvolution(ctx.user.id, input?.months ?? 6)),
+});
+
+// ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
-    // if you need to use socket.io, read and register route in server/_core/index.ts, all api should start with '/api/' so that the gateway can route correctly
   system: systemRouter,
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
+      return { success: true } as const;
     }),
   }),
-
-  // TODO: add feature routers here, e.g.
-  // todo: router({
-  //   list: protectedProcedure.query(({ ctx }) =>
-  //     db.getUserTodos(ctx.user.id)
-  //   ),
-  // }),
+  familyMembers: familyMembersRouter,
+  incomes: incomesRouter,
+  expenses: expensesRouter,
+  bills: billsRouter,
+  creditCards: creditCardsRouter,
+  budgets: budgetsRouter,
+  goals: goalsRouter,
+  shopping: shoppingRouter,
+  investments: investmentsRouter,
+  dashboard: dashboardRouter,
 });
 
 export type AppRouter = typeof appRouter;
