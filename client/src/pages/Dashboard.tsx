@@ -10,7 +10,8 @@ import { useLocation } from "wouter";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: getMonthName(i + 1) }));
-const YEARS = [2023, 2024, 2025, 2026];
+const _cy = new Date().getFullYear();
+const YEARS = Array.from({ length: 8 }, (_, i) => _cy - 5 + i);
 
 export default function Dashboard() {
   const [month, setMonth] = useState(getCurrentMonth());

@@ -138,3 +138,6 @@
 - [x] Dashboard: adicionar card 50/30/20 com barras de progresso por grupo
 - [x] Mercado: ao salvar uma ida ao mercado, criar despesa automática vinculada à subcategoria
 - [x] Combustível: ao salvar um abastecimento, criar despesa automática vinculada à subcategoria
+
+## Correções v8
+- [x] Seletores de ano dinâmicos em todo o sistema (Dashboard, Relatórios, Despesas, Receitas, Orçamento) — agora mostra 5 anos atrás até 2 anos à frente automaticamente

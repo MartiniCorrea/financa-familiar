@@ -15,7 +15,8 @@ const MONTHS = Array.from({ length: 12 }, (_, i) => {
   const d = new Date(2024, i, 1);
   return { value: i + 1, label: d.toLocaleDateString('pt-BR', { month: 'long' }) };
 });
-const YEARS = [2023, 2024, 2025, 2026];
+const _cy = new Date().getFullYear();
+const YEARS = Array.from({ length: 8 }, (_, i) => _cy - 5 + i);
 
 export default function Budget() {
   const [month, setMonth] = useState(getCurrentMonth());

@@ -11,7 +11,8 @@ import {
 } from "recharts";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: getMonthName(i + 1) }));
-const YEARS = [2023, 2024, 2025, 2026];
+const _cy = new Date().getFullYear();
+const YEARS = Array.from({ length: 8 }, (_, i) => _cy - 5 + i);
 
 const tooltipStyle = {
   contentStyle: { backgroundColor: 'oklch(0.16 0.025 265)', border: '1px solid oklch(0.25 0.03 265)', borderRadius: '8px' },
