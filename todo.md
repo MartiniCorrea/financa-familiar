@@ -124,3 +124,10 @@
 - [x] PWA: meta tags no index.html (apple-mobile-web-app, theme-color)
 - [x] PWA: ícones 192x192 e 512x512 gerados
 - [x] Guia de deploy na Hostinger VPS (GUIA_DEPLOY_HOSTINGER.md)
+
+## Correções v6 (categorias)
+- [x] Remover campo "categoria" antigo (fixo) do formulário de Despesas
+- [x] Remover campo "categoria" antigo (fixo) do formulário de Contas
+- [x] Garantir que apenas subcategorias 50/30/20 do usuário aparecem nos selects
+- [x] Dashboard: gráfico "Despesas por Categoria" usar subcategorias 50/30/20
+- [x] Dashboard: filtro de despesas usa subcategorias do usuário

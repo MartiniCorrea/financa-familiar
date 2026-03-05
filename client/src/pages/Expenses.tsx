@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { formatCurrency, formatDate, getCategoryInfo, EXPENSE_CATEGORIES, getCurrentMonth, getCurrentYear, getTodayString } from "@/lib/finance";
+import { formatCurrency, formatDate, getCurrentMonth, getCurrentYear, getTodayString } from "@/lib/finance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,13 +23,13 @@ const PAYMENT_METHODS = [
 ];
 
 type ExpenseForm = {
-  description: string; amount: string; parentCategory: string; date: string;
+  description: string; amount: string; date: string;
   paymentMethod: string; installments: string; notes: string;
   subcategoryId: string;
 };
 
 const emptyForm: ExpenseForm = {
-  description: '', amount: '', parentCategory: 'outros', date: getTodayString(),
+  description: '', amount: '', date: getTodayString(),
   paymentMethod: 'outros', installments: '1', notes: '', subcategoryId: '',
 };
 
@@ -37,7 +37,7 @@ export default function Expenses() {
   const [month, setMonth] = useState(getCurrentMonth());
   const [year, setYear] = useState(getCurrentYear());
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('all');
+  const [subcatFilter, setSubcatFilter] = useState('all');
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<ExpenseForm>(emptyForm);
@@ -63,7 +63,7 @@ export default function Expenses() {
 
   const filtered = expenses.filter(e =>
     e.description.toLowerCase().includes(search.toLowerCase()) &&
-    (categoryFilter === 'all' || e.parentCategory === categoryFilter)
+    (subcatFilter === 'all' || String((e as any).subcategoryId) === subcatFilter)
   );
   const total = filtered.reduce((sum, e) => sum + parseFloat(e.amount), 0);
 
@@ -72,7 +72,7 @@ export default function Expenses() {
     if (!form.description || !form.amount || !form.date) return toast.error("Preencha os campos obrigatórios");
     const data = {
       ...form,
-      parentCategory: form.parentCategory as any,
+      parentCategory: 'outros' as any,
       paymentMethod: form.paymentMethod as any,
       installments: parseInt(form.installments) || 1,
       subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined,
@@ -85,7 +85,6 @@ export default function Expenses() {
     setEditId(expense.id);
     setForm({
       description: expense.description, amount: expense.amount,
-      parentCategory: expense.parentCategory,
       date: typeof expense.date === 'string' ? expense.date : new Date(expense.date).toISOString().split('T')[0],
       paymentMethod: expense.paymentMethod ?? 'outros',
       installments: String(expense.installments ?? 1),
@@ -136,22 +135,11 @@ export default function Expenses() {
                   <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
                 </div>
               </div>
+              {/* Categoria 50/30/20 */}
               <div className="space-y-1.5">
-                <Label>Categoria</Label>
-                <Select value={form.parentCategory} onValueChange={v => setForm(f => ({ ...f, parentCategory: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {EXPENSE_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Subcategoria 50/30/20 */}
-              {expenseGroups.length > 0 && (
-                <div className="space-y-1.5">
                   <Label className="flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-primary" />
-                    Subcategoria 50/30/20
+                    Categoria 50/30/20
                     <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
                   </Label>
                   <Select
@@ -184,8 +172,7 @@ export default function Expenses() {
                       })}
                     </SelectContent>
                   </Select>
-                </div>
-              )}
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -221,11 +208,27 @@ export default function Expenses() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar despesas..." className="pl-9" />
         </div>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-40"><SelectValue placeholder="Categoria" /></SelectTrigger>
+        <Select value={subcatFilter} onValueChange={setSubcatFilter}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Categoria" /></SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todas</SelectItem>
-            {EXPENSE_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>)}
+            <SelectItem value="all">Todas as categorias</SelectItem>
+            {expenseGroups.map(group => {
+              const groupSubcats = allSubcats.filter(s => s.groupId === group.id);
+              if (groupSubcats.length === 0) return null;
+              return (
+                <div key={group.id}>
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.name}</div>
+                  {groupSubcats.map(sub => (
+                    <SelectItem key={sub.id} value={String(sub.id)}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sub.color || '#6366f1' }} />
+                        {sub.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </div>
+              );
+            })}
           </SelectContent>
         </Select>
         <Select value={String(month)} onValueChange={v => setMonth(Number(v))}>
@@ -269,25 +272,29 @@ export default function Expenses() {
           ) : (
             <div className="divide-y divide-border">
               {filtered.map(expense => {
-                const cat = getCategoryInfo(expense.parentCategory);
                 const isInstallment = (expense.installments ?? 1) > 1;
                 const subcatInfo = getSubcatInfo((expense as any).subcategoryId);
+                const subcatColor = subcatInfo?.sub.color || '#6366f1';
                 return (
                   <div key={expense.id} className="flex items-center justify-between p-4 hover:bg-accent/20 transition-colors group">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0" style={{ backgroundColor: cat.color + '20' }}>
-                        {cat.icon}
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: subcatColor + '20' }}>
+                        <span className="text-sm font-bold" style={{ color: subcatColor }}>{expense.description.charAt(0).toUpperCase()}</span>
                       </div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-foreground truncate">{expense.description}</p>
                         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                           <span className="text-xs text-muted-foreground">{formatDate(expense.date as any)}</span>
-                          <Badge variant="outline" className="text-xs px-1.5 py-0" style={{ borderColor: cat.color + '40', color: cat.color }}>{cat.label}</Badge>
-                          {subcatInfo && (
-                            <Badge variant="secondary" className="text-xs px-1.5 py-0 flex items-center gap-1">
-                              <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: subcatInfo.sub.color || "#6366f1" }} />
-                              {subcatInfo.sub.name}
-                            </Badge>
+                          {subcatInfo ? (
+                            <>
+                              <Badge variant="outline" className="text-xs px-1.5 py-0" style={{ borderColor: subcatColor + '60', color: subcatColor }}>
+                                <div className="w-1.5 h-1.5 rounded-full mr-1 inline-block" style={{ backgroundColor: subcatColor }} />
+                                {subcatInfo.sub.name}
+                              </Badge>
+                              <Badge variant="secondary" className="text-xs px-1.5 py-0 text-muted-foreground">{subcatInfo.group?.name}</Badge>
+                            </>
+                          ) : (
+                            <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">Sem categoria</Badge>
                           )}
                           {isInstallment && <Badge variant="secondary" className="text-xs px-1.5 py-0">{expense.currentInstallment}/{expense.installments}x</Badge>}
                         </div>

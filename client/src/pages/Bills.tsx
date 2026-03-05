@@ -12,16 +12,8 @@ import { Plus, Trash2, CheckCircle, Receipt, ArrowDownRight, ArrowUpRight, Clock
 import { useState } from "react";
 import { toast } from "sonner";
 
-const BILL_CATEGORIES = [
-  { value: 'habitacao', label: '🏠 Habitação' }, { value: 'alimentacao', label: '🍽️ Alimentação' },
-  { value: 'saude', label: '❤️ Saúde' }, { value: 'educacao', label: '📚 Educação' },
-  { value: 'transporte', label: '🚗 Transporte' }, { value: 'utilidades', label: '💡 Utilidades' },
-  { value: 'financeiro', label: '💳 Financeiro' }, { value: 'salario', label: '💼 Salário' },
-  { value: 'renda_extra', label: '💰 Renda Extra' }, { value: 'outros', label: '📦 Outros' },
-];
-
-type BillForm = { description: string; amount: string; type: 'pagar' | 'receber'; dueDate: string; category: string; notes: string; subcategoryId: string; };
-const emptyForm: BillForm = { description: '', amount: '', type: 'pagar', dueDate: getTodayString(), category: 'outros', notes: '', subcategoryId: '' };
+type BillForm = { description: string; amount: string; type: 'pagar' | 'receber'; dueDate: string; notes: string; subcategoryId: string; };
+const emptyForm: BillForm = { description: '', amount: '', type: 'pagar', dueDate: getTodayString(), notes: '', subcategoryId: '' };
 
 export default function Bills() {
   const [tab, setTab] = useState('pendente');
@@ -53,7 +45,7 @@ export default function Bills() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.description || !form.amount || !form.dueDate) return toast.error("Preencha os campos obrigatórios");
-    createMutation.mutate({ ...form, amount: form.amount, category: form.category as any, subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined });
+    createMutation.mutate({ ...form, amount: form.amount, category: 'outros' as any, subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined });
   }
 
   function getStatusBadge(bill: any) {
@@ -96,57 +88,46 @@ export default function Bills() {
                   <Input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} className="bg-input border-border text-foreground" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-foreground">Tipo</Label>
-                  <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as any }))}>
-                    <SelectTrigger className="bg-input border-border text-foreground"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pagar">A Pagar</SelectItem>
-                      <SelectItem value="receber">A Receber</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-foreground">Categoria</Label>
-                  <Select value={form.category} onValueChange={v => setForm(f => ({ ...f, category: v }))}>
-                    <SelectTrigger className="bg-input border-border text-foreground"><SelectValue /></SelectTrigger>
-                    <SelectContent>{BILL_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground">Tipo</Label>
+                <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v as any }))}>
+                  <SelectTrigger className="bg-input border-border text-foreground"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pagar">A Pagar</SelectItem>
+                    <SelectItem value="receber">A Receber</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              {expenseGroups.length > 0 && (
-                <div className="space-y-1.5">
-                  <Label className="flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-primary" />
-                    Subcategoria 50/30/20
-                    <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
-                  </Label>
-                  <Select value={form.subcategoryId || "none"} onValueChange={v => setForm(f => ({ ...f, subcategoryId: v === "none" ? "" : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sem subcategoria</SelectItem>
-                      {expenseGroups.map(group => {
-                        const groupSubcats = allSubcats.filter(s => s.groupId === group.id);
-                        if (groupSubcats.length === 0) return null;
-                        return (
-                          <div key={group.id}>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.name}</div>
-                            {groupSubcats.map(sub => (
-                              <SelectItem key={sub.id} value={String(sub.id)}>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: sub.color || "#6366f1" }} />
-                                  {sub.name}
-                                </div>
-                              </SelectItem>
-                            ))}
-                          </div>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div className="space-y-1.5">
+                <Label className="flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-primary" />
+                  Categoria 50/30/20
+                  <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
+                </Label>
+                <Select value={form.subcategoryId || "none"} onValueChange={v => setForm(f => ({ ...f, subcategoryId: v === "none" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione uma categoria..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem categoria</SelectItem>
+                    {expenseGroups.map(group => {
+                      const groupSubcats = allSubcats.filter(s => s.groupId === group.id);
+                      if (groupSubcats.length === 0) return null;
+                      return (
+                        <div key={group.id}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.name}</div>
+                          {groupSubcats.map(sub => (
+                            <SelectItem key={sub.id} value={String(sub.id)}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sub.color || "#6366f1" }} />
+                                {sub.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground">Observações</Label>
                 <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Opcional" className="bg-input border-border text-foreground" />

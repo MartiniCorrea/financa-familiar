@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { formatCurrency, formatDate, getCategoryInfo, getCurrentMonth, getCurrentYear, getDaysUntilDue, getMonthName, CHART_COLORS } from "@/lib/finance";
+import { formatCurrency, formatDate, getCurrentMonth, getCurrentYear, getDaysUntilDue, getMonthName } from "@/lib/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,18 +19,27 @@ export default function Dashboard() {
 
   const { data: summary, isLoading } = trpc.dashboard.summary.useQuery({ month, year });
   const { data: evolution } = trpc.dashboard.evolution.useQuery({ months: 6 });
+  const { data: groupSummary } = trpc.expenseGroups.summary.useQuery({ month, year });
 
+  // Gráfico de pizza usando subcategorias 50/30/20 do usuário
   const pieData = useMemo(() => {
-    if (!summary?.expenseByCategory) return [];
-    return summary.expenseByCategory
-      .filter(c => parseFloat(c.total) > 0)
-      .map(c => ({
-        name: getCategoryInfo(c.category ?? 'outros').label,
-        value: parseFloat(c.total),
-        color: getCategoryInfo(c.category ?? 'outros').color,
-      }))
+    if (!groupSummary?.length) return [];
+    // Tenta mostrar por subcategoria primeiro
+    const bySub: { name: string; value: number; color: string }[] = [];
+    for (const group of groupSummary) {
+      for (const sub of (group.subcategories ?? [])) {
+        if ((sub as any).spent > 0) {
+          bySub.push({ name: sub.name, value: (sub as any).spent, color: sub.color || '#6366f1' });
+        }
+      }
+    }
+    if (bySub.length > 0) return bySub.sort((a, b) => b.value - a.value);
+    // Fallback: por grupo
+    return groupSummary
+      .filter(g => g.spent > 0)
+      .map(g => ({ name: g.name, value: g.spent, color: g.color || '#6366f1' }))
       .sort((a, b) => b.value - a.value);
-  }, [summary]);
+  }, [groupSummary]);
 
   const kpis = [
     {
