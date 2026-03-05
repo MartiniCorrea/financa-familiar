@@ -174,7 +174,28 @@ const shoppingRouter = router({
     update: protectedProcedure.input(z.object({
       id: z.number(), name: z.string().optional(), status: z.enum(["ativa","concluida","cancelada"]).optional(),
       actualTotal: z.string().optional(), supermarketId: z.number().optional(), shoppingDate: z.string().optional(),
-    })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateShoppingList(id, ctx.user.id, data as any); }),
+      autoExpenseSubcategoryId: z.number().optional(), // subcategoria para despesa automática
+    })).mutation(async ({ ctx, input }) => {
+      const { id, autoExpenseSubcategoryId, ...data } = input;
+      const result = await db.updateShoppingList(id, ctx.user.id, data as any);
+      // Criar despesa automática ao concluir a compra
+      if (data.status === 'concluida' && data.actualTotal && parseFloat(data.actualTotal) > 0) {
+        const list = await db.getShoppingLists(ctx.user.id).then(lists => lists.find(l => l.id === id));
+        const supermarketName = list ? (list as any).supermarketName ?? 'Mercado' : 'Mercado';
+        const dateStr = data.shoppingDate ?? new Date().toISOString().split('T')[0];
+        await db.createExpense({
+          userId: ctx.user.id,
+          description: `Compra - ${supermarketName}`,
+          amount: data.actualTotal,
+          category: 'alimentacao' as any,
+          subcategoryId: autoExpenseSubcategoryId ?? null,
+          date: dateStr,
+          notes: `Gerado automaticamente ao concluir lista de compras`,
+          isRecurring: false,
+        } as any);
+      }
+      return result;
+    }),
     delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteShoppingList(input.id, ctx.user.id)),
   }),
   items: router({
@@ -253,7 +274,32 @@ const fuelHistoryRouter = router({
     mileage: z.number().optional(),
     recordedAt: z.string(),
     notes: z.string().optional(),
-  })).mutation(({ ctx, input }) => db.createFuelHistory({ ...input, userId: ctx.user.id } as any)),
+    autoExpenseSubcategoryId: z.number().optional(), // subcategoria para despesa automática
+  })).mutation(async ({ ctx, input }) => {
+    const { autoExpenseSubcategoryId, ...fuelData } = input;
+    const result = await db.createFuelHistory({ ...fuelData, userId: ctx.user.id } as any);
+    // Criar despesa automática ao registrar abastecimento
+    const total = fuelData.totalAmount
+      ? parseFloat(fuelData.totalAmount)
+      : fuelData.liters ? parseFloat(fuelData.liters) * parseFloat(fuelData.pricePerLiter) : 0;
+    if (total > 0) {
+      const fuelLabel: Record<string, string> = {
+        gasolina_comum: 'Gasolina Comum', gasolina_aditivada: 'Gasolina Aditivada',
+        etanol: 'Etanol', diesel: 'Diesel', diesel_s10: 'Diesel S10', gnv: 'GNV',
+      };
+      await db.createExpense({
+        userId: ctx.user.id,
+        description: `Abastecimento - ${fuelLabel[fuelData.fuelType] ?? fuelData.fuelType} (${fuelData.gasStationName})`,
+        amount: total.toFixed(2),
+        category: 'transporte' as any,
+        subcategoryId: autoExpenseSubcategoryId ?? null,
+        date: fuelData.recordedAt,
+        notes: `Gerado automaticamente ao registrar abastecimento`,
+        isRecurring: false,
+      } as any);
+    }
+    return result;
+  }),
   delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteFuelHistory(input.id, ctx.user.id)),
   stats: protectedProcedure.input(z.object({ fuelType: z.string().optional() }).optional())
     .query(({ ctx, input }) => db.getFuelStats(ctx.user.id, input?.fuelType)),

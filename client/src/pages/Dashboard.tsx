@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, ChevronRight, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, ChevronRight, ArrowUpRight, ArrowDownRight, Layers } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
@@ -216,6 +216,53 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Card 50/30/20 */}
+      {groupSummary && groupSummary.length > 0 && (
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
+              <Layers className="w-4 h-4 text-primary" />
+              Método 50/30/20
+            </CardTitle>
+            <Button variant="ghost" size="sm" className="text-primary text-xs" onClick={() => setLocation('/categorias')}>Ver detalhes <ChevronRight className="w-3 h-3 ml-1" /></Button>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {groupSummary.map((group: any) => {
+              const pct = group.targetPercent ?? 0;
+              const spent = group.spent ?? 0;
+              const target = group.targetAmount ?? 0;
+              const used = target > 0 ? Math.min((spent / target) * 100, 100) : 0;
+              const isOver = spent > target && target > 0;
+              return (
+                <div key={group.id} className="space-y-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: group.color || '#6366f1' }} />
+                      <span className="font-medium text-foreground">{group.name}</span>
+                      <span className="text-xs text-muted-foreground">(meta {pct}%)</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className={isOver ? 'text-red-500 font-semibold' : 'text-muted-foreground'}>{formatCurrency(spent)}</span>
+                      <span className="text-muted-foreground">/</span>
+                      <span className="text-foreground font-medium">{formatCurrency(target)}</span>
+                    </div>
+                  </div>
+                  <div className="w-full bg-accent rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full transition-all ${isOver ? 'bg-red-500' : 'bg-primary'}`}
+                      style={{ width: `${used}%`, backgroundColor: isOver ? undefined : group.color || undefined }}
+                    />
+                  </div>
+                  {isOver && (
+                    <p className="text-xs text-red-500">Acima do limite em {formatCurrency(spent - target)}</p>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pending Bills */}
       <Card className="bg-card border-border">

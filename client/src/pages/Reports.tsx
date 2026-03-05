@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { formatCurrency, getCategoryInfo, EXPENSE_CATEGORIES, getCurrentMonth, getCurrentYear, getMonthName, CHART_COLORS } from "@/lib/finance";
+import { formatCurrency, getCurrentMonth, getCurrentYear, getMonthName } from "@/lib/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,17 +25,34 @@ export default function Reports() {
 
   const { data: summary } = trpc.dashboard.summary.useQuery({ month, year });
   const { data: evolution } = trpc.dashboard.evolution.useQuery({ months: 12 });
+  const { data: groupSummary } = trpc.expenseGroups.summary.useQuery({ month, year });
 
+  // Dados do gráfico de pizza usando subcategorias 50/30/20 do usuário
   const pieData = useMemo(() => {
-    if (!summary?.expenseByCategory) return [];
-    return summary.expenseByCategory
-      .filter((c: any) => parseFloat(c.total) > 0)
-      .map((c: any) => ({
-        name: getCategoryInfo(c.category ?? 'outros').label,
-        value: parseFloat(c.total),
-        color: getCategoryInfo(c.category ?? 'outros').color,
-      }))
-      .sort((a: any, b: any) => b.value - a.value);
+    if (!groupSummary?.length) return [];
+    // Tenta mostrar por subcategoria primeiro
+    const bySub: { name: string; value: number; color: string }[] = [];
+    for (const group of groupSummary) {
+      for (const sub of (group.subcategories ?? [])) {
+        if ((sub as any).spent > 0) {
+          bySub.push({ name: sub.name, value: (sub as any).spent, color: sub.color || '#6366f1' });
+        }
+      }
+    }
+    if (bySub.length > 0) return bySub.sort((a, b) => b.value - a.value);
+    // Fallback: por grupo
+    return groupSummary
+      .filter(g => g.spent > 0)
+      .map(g => ({ name: g.name, value: g.spent, color: g.color || '#6366f1' }))
+      .sort((a, b) => b.value - a.value);
+  }, [groupSummary]);
+
+  // Dados de receitas por fonte
+  const incomeSourceData = useMemo(() => {
+    if (!summary?.totalIncome) return [];
+    return [
+      { name: 'Receita Total', value: summary.totalIncome, color: '#22c55e' },
+    ];
   }, [summary]);
 
   const incomeData = useMemo(() => {

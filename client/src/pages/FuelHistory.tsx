@@ -27,14 +27,18 @@ export default function FuelHistory() {
     gasStationName: "", fuelType: "gasolina_comum" as any,
     pricePerLiter: "", liters: "", totalAmount: "", mileage: "",
     recordedAt: new Date().toISOString().split("T")[0], notes: "",
+    subcategoryId: "", // subcategoria 50/30/20 para despesa automática
   });
+
+  const { data: expenseGroups = [] } = trpc.expenseGroups.list.useQuery();
+  const { data: allSubcats = [] } = trpc.expenseGroups.subcategories.list.useQuery({});
 
   const { data: records = [], refetch } = trpc.fuelHistory.list.useQuery(filterFuel ? { fuelType: filterFuel } : undefined);
   const { data: stats = [] } = trpc.fuelHistory.stats.useQuery(filterFuel ? { fuelType: filterFuel } : undefined);
   const { data: stations = [] } = trpc.fuelHistory.stations.useQuery();
 
   const createMutation = trpc.fuelHistory.create.useMutation({
-    onSuccess: () => { toast.success("Abastecimento registrado!"); setOpen(false); setForm({ gasStationName: "", fuelType: "gasolina_comum", pricePerLiter: "", liters: "", totalAmount: "", mileage: "", recordedAt: new Date().toISOString().split("T")[0], notes: "" }); refetch(); },
+    onSuccess: () => { toast.success("Abastecimento registrado! Despesa lançada automaticamente."); setOpen(false); setForm({ gasStationName: "", fuelType: "gasolina_comum", pricePerLiter: "", liters: "", totalAmount: "", mileage: "", recordedAt: new Date().toISOString().split("T")[0], notes: "", subcategoryId: "" }); refetch(); },
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.fuelHistory.delete.useMutation({
@@ -51,6 +55,7 @@ export default function FuelHistory() {
       totalAmount: form.totalAmount || undefined,
       mileage: form.mileage ? parseInt(form.mileage) : undefined,
       notes: form.notes || undefined,
+      autoExpenseSubcategoryId: form.subcategoryId && form.subcategoryId !== 'none' ? parseInt(form.subcategoryId) : undefined,
     });
   }
 
@@ -91,6 +96,29 @@ export default function FuelHistory() {
                 <div><Label>Km do veículo</Label><Input type="number" value={form.mileage} onChange={e => setForm(f => ({ ...f, mileage: e.target.value }))} placeholder="Ex: 45000" /></div>
               </div>
               <div><Label>Data *</Label><Input type="date" value={form.recordedAt} onChange={e => setForm(f => ({ ...f, recordedAt: e.target.value }))} /></div>
+              <div>
+                <Label>Categoria de Despesa (50/30/20)</Label>
+                <Select value={form.subcategoryId} onValueChange={v => setForm(f => ({ ...f, subcategoryId: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a subcategoria (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem categoria</SelectItem>
+                    {expenseGroups.map(group => (
+                      <>
+                        <div key={`g-${group.id}`} className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{group.name}</div>
+                        {allSubcats.filter(s => s.groupId === group.id).map(sub => (
+                          <SelectItem key={sub.id} value={String(sub.id)}>
+                            <span className="flex items-center gap-2">
+                              <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: sub.color || '#6366f1' }} />
+                              {sub.name}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">A despesa será lançada automaticamente ao registrar.</p>
+              </div>
               <div><Label>Observações</Label><Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Opcional" /></div>
               <Button type="submit" className="w-full" disabled={createMutation.isPending}>Registrar</Button>
             </form>

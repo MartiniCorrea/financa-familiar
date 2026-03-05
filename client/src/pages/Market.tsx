@@ -41,6 +41,7 @@ export default function Market() {
     supermarketId: "",
     shoppingDate: new Date().toISOString().split("T")[0],
     notes: "",
+    subcategoryId: "", // subcategoria 50/30/20 para despesa automática
   });
   const [tripItems, setTripItems] = useState<TripItem[]>([
     { id: "1", name: "", quantity: "1", unit: "un", actualPrice: "" }
@@ -67,6 +68,10 @@ export default function Market() {
     { listId: expandedTrip! },
     { enabled: !!expandedTrip }
   );
+
+  // Subcategorias 50/30/20
+  const { data: expenseGroups = [] } = trpc.expenseGroups.list.useQuery();
+  const { data: allSubcats = [] } = trpc.expenseGroups.subcategories.list.useQuery({});
 
   // Mutations
   const createListMutation = trpc.shopping.lists.create.useMutation({
@@ -153,16 +158,21 @@ export default function Market() {
         });
       }
 
-      // 4. Atualizar total da lista
+      // 4. Atualizar total da lista e criar despesa automática
       await updateListMutation.mutateAsync({
         id: newList.id,
         actualTotal: String(totalActual.toFixed(2)),
         status: "concluida",
+        shoppingDate: tripForm.shoppingDate,
+        autoExpenseSubcategoryId: tripForm.subcategoryId ? parseInt(tripForm.subcategoryId) : undefined,
       });
 
-      toast.success(`Ida ao mercado salva! Total: ${formatCurrency(totalActual)}`);
+      const subcatName = tripForm.subcategoryId
+        ? allSubcats.find(s => s.id === parseInt(tripForm.subcategoryId))?.name ?? ''
+        : '';
+      toast.success(`Compra salva! Total: ${formatCurrency(totalActual)}${subcatName ? ` — despesa lançada em "${subcatName}"` : ' — despesa automática criada'}`);
       setOpenTrip(false);
-      setTripForm({ supermarketId: "", shoppingDate: new Date().toISOString().split("T")[0], notes: "" });
+      setTripForm({ supermarketId: "", shoppingDate: new Date().toISOString().split("T")[0], notes: "", subcategoryId: "" });
       setTripItems([{ id: "1", name: "", quantity: "1", unit: "un", actualPrice: "" }]);
       utils.priceHistory.products.invalidate();
       utils.priceHistory.list.invalidate();
@@ -257,6 +267,31 @@ export default function Market() {
                     <Label>Data da Compra *</Label>
                     <Input type="date" value={tripForm.shoppingDate} onChange={e => setTripForm(f => ({ ...f, shoppingDate: e.target.value }))} />
                   </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Categoria de Despesa (50/30/20)</Label>
+                  <Select value={tripForm.subcategoryId} onValueChange={v => setTripForm(f => ({ ...f, subcategoryId: v }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a subcategoria (opcional)" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem categoria</SelectItem>
+                      {expenseGroups.map(group => (
+                        <>
+                          <div key={`g-${group.id}`} className="px-2 py-1 text-xs font-semibold text-muted-foreground uppercase tracking-wide">{group.name}</div>
+                          {allSubcats.filter(s => s.groupId === group.id).map(sub => (
+                            <SelectItem key={sub.id} value={String(sub.id)}>
+                              <span className="flex items-center gap-2">
+                                <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: sub.color || '#6366f1' }} />
+                                {sub.name}
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">A despesa será lançada automaticamente nesta categoria ao salvar.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Observações</Label>

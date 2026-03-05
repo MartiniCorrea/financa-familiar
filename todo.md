@@ -131,3 +131,10 @@
 - [x] Garantir que apenas subcategorias 50/30/20 do usuário aparecem nos selects
 - [x] Dashboard: gráfico "Despesas por Categoria" usar subcategorias 50/30/20
 - [x] Dashboard: filtro de despesas usa subcategorias do usuário
+
+## Melhorias v7
+- [x] Relatórios: corrigir gráfico de pizza para usar subcategorias 50/30/20 do usuário
+- [x] Relatórios: remover categorias antigas fixas dos filtros e gráficos
+- [x] Dashboard: adicionar card 50/30/20 com barras de progresso por grupo
+- [x] Mercado: ao salvar uma ida ao mercado, criar despesa automática vinculada à subcategoria
+- [x] Combustível: ao salvar um abastecimento, criar despesa automática vinculada à subcategoria
