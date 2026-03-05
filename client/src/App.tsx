@@ -16,6 +16,9 @@ import Shopping from "./pages/Shopping";
 import Investments from "./pages/Investments";
 import Reports from "./pages/Reports";
 import FamilyMembers from "./pages/FamilyMembers";
+import PriceHistory from "./pages/PriceHistory";
+import FuelHistory from "./pages/FuelHistory";
+import ExpenseGroups from "./pages/ExpenseGroups";
 
 function AppRoutes() {
   return (
@@ -29,6 +32,9 @@ function AppRoutes() {
         <Route path="/orcamento" component={Budget} />
         <Route path="/metas" component={Goals} />
         <Route path="/mercado" component={Shopping} />
+        <Route path="/precos" component={PriceHistory} />
+        <Route path="/combustivel" component={FuelHistory} />
+        <Route path="/categorias" component={ExpenseGroups} />
         <Route path="/investimentos" component={Investments} />
         <Route path="/relatorios" component={Reports} />
         <Route path="/familia" component={FamilyMembers} />
@@ -42,7 +48,7 @@ function AppRoutes() {
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="dark">
+      <ThemeProvider defaultTheme="light">
         <TooltipProvider>
           <Toaster richColors position="top-right" />
           <AppRoutes />

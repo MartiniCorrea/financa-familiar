@@ -309,3 +309,50 @@ export const investmentTransactions = mysqlTable("investment_transactions", {
 
 export type InvestmentTransaction = typeof investmentTransactions.$inferSelect;
 export type InsertInvestmentTransaction = typeof investmentTransactions.$inferInsert;
+
+// ─── Fuel History (Histórico de Combustível) ──────────────────────────────────
+export const fuelHistory = mysqlTable("fuel_history", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  gasStationName: varchar("gasStationName", { length: 150 }).notNull(),
+  fuelType: mysqlEnum("fuelType", ["gasolina_comum", "gasolina_aditivada", "etanol", "diesel", "diesel_s10", "gnv"]).notNull().default("gasolina_comum"),
+  pricePerLiter: decimal("pricePerLiter", { precision: 10, scale: 3 }).notNull(),
+  liters: decimal("liters", { precision: 10, scale: 3 }),
+  totalAmount: decimal("totalAmount", { precision: 15, scale: 2 }),
+  mileage: int("mileage"),
+  recordedAt: date("recordedAt").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type FuelHistory = typeof fuelHistory.$inferSelect;
+export type InsertFuelHistory = typeof fuelHistory.$inferInsert;
+
+// ─── Expense Groups (50/30/20 system) ────────────────────────────────────────
+export const expenseGroups = mysqlTable("expense_groups", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  groupType: mysqlEnum("groupType", ["necessario", "nao_necessario", "investimento"]).notNull(),
+  targetPercent: decimal("targetPercent", { precision: 5, scale: 2 }).notNull().default("0"),
+  color: varchar("color", { length: 20 }).default("#6366f1"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ExpenseGroup = typeof expenseGroups.$inferSelect;
+export type InsertExpenseGroup = typeof expenseGroups.$inferInsert;
+
+// ─── Expense Subcategories (custom 50/30/20 subcategories) ───────────────────
+export const expenseSubcategories = mysqlTable("expense_subcategories", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  groupId: int("groupId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  color: varchar("color", { length: 20 }).default("#6366f1"),
+  icon: varchar("icon", { length: 50 }).default("tag"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ExpenseSubcategory = typeof expenseSubcategories.$inferSelect;
+export type InsertExpenseSubcategory = typeof expenseSubcategories.$inferInsert;

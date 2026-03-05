@@ -339,22 +339,7 @@ export async function deleteShoppingItem(id: number, userId: number) {
   return db.delete(shoppingItems).where(and(eq(shoppingItems.id, id), eq(shoppingItems.userId, userId)));
 }
 
-// ─── Price History ────────────────────────────────────────────────────────────
-export async function getPriceHistory(userId: number, productName?: string) {
-  const db = await getDb();
-  if (!db) return [];
-  const conditions = [eq(priceHistory.userId, userId)];
-  if (productName) conditions.push(sql`${priceHistory.productName} LIKE ${`%${productName}%`}`);
-  return db.select().from(priceHistory).where(and(...conditions)).orderBy(desc(priceHistory.recordedAt));
-}
-
-export async function addPriceRecord(data: InsertPriceHistory) {
-  const db = await getDb();
-  if (!db) throw new Error("DB not available");
-  return db.insert(priceHistory).values(data);
-}
-
-// ─── Investments ──────────────────────────────────────────────────────────────
+// ─── Investmentsnts ──────────────────────────────────────────────────────────────
 export async function getInvestments(userId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -471,4 +456,224 @@ export async function createExpenseCategory(data: InsertExpenseCategory) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.insert(expenseCategories).values(data);
+}
+
+// ─── Price History ────────────────────────────────────────────────────────────
+export async function getPriceHistory(userId: number, filters?: { productName?: string; supermarketId?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(priceHistory.userId, userId)];
+  if (filters?.productName) conditions.push(sql`LOWER(${priceHistory.productName}) LIKE LOWER(${`%${filters.productName}%`})`);
+  if (filters?.supermarketId) conditions.push(eq(priceHistory.supermarketId, filters.supermarketId));
+  const rows = await db.select({
+    id: priceHistory.id,
+    productName: priceHistory.productName,
+    price: priceHistory.price,
+    unit: priceHistory.unit,
+    recordedAt: priceHistory.recordedAt,
+    supermarketId: priceHistory.supermarketId,
+    createdAt: priceHistory.createdAt,
+    supermarketName: supermarkets.name,
+  }).from(priceHistory)
+    .leftJoin(supermarkets, eq(priceHistory.supermarketId, supermarkets.id))
+    .where(and(...conditions))
+    .orderBy(sql`${priceHistory.recordedAt} DESC`);
+  return rows;
+}
+
+export async function createPriceHistory(data: InsertPriceHistory) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.insert(priceHistory).values(data);
+}
+
+export async function deletePriceHistory(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.delete(priceHistory).where(and(eq(priceHistory.id, id), eq(priceHistory.userId, userId)));
+}
+
+export async function getPriceComparison(userId: number, productName: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.select({
+    supermarketId: priceHistory.supermarketId,
+    supermarketName: supermarkets.name,
+    minPrice: sql<string>`MIN(${priceHistory.price})`,
+    maxPrice: sql<string>`MAX(${priceHistory.price})`,
+    avgPrice: sql<string>`AVG(${priceHistory.price})`,
+    lastPrice: sql<string>`(SELECT ph2.price FROM price_history ph2 WHERE ph2.userId = ${userId} AND LOWER(ph2.productName) = LOWER(${productName}) AND ph2.supermarketId = ${priceHistory.supermarketId} ORDER BY ph2.recordedAt DESC LIMIT 1)`,
+    lastDate: sql<string>`(SELECT ph2.recordedAt FROM price_history ph2 WHERE ph2.userId = ${userId} AND LOWER(ph2.productName) = LOWER(${productName}) AND ph2.supermarketId = ${priceHistory.supermarketId} ORDER BY ph2.recordedAt DESC LIMIT 1)`,
+    count: sql<number>`COUNT(*)`,
+  }).from(priceHistory)
+    .leftJoin(supermarkets, eq(priceHistory.supermarketId, supermarkets.id))
+    .where(and(eq(priceHistory.userId, userId), sql`LOWER(${priceHistory.productName}) = LOWER(${productName})`))
+    .groupBy(priceHistory.supermarketId, supermarkets.name);
+  return rows.map(r => ({
+    ...r,
+    minPrice: parseFloat(r.minPrice || '0'),
+    maxPrice: parseFloat(r.maxPrice || '0'),
+    avgPrice: parseFloat(r.avgPrice || '0'),
+    lastPrice: parseFloat(r.lastPrice || '0'),
+    count: Number(r.count),
+  }));
+}
+
+export async function getDistinctProducts(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.selectDistinct({ productName: priceHistory.productName })
+    .from(priceHistory).where(eq(priceHistory.userId, userId))
+    .orderBy(priceHistory.productName);
+  return rows.map(r => r.productName);
+}
+
+// ─── Fuel History ─────────────────────────────────────────────────────────────
+import {
+  fuelHistory, expenseGroups, expenseSubcategories,
+  InsertFuelHistory, InsertExpenseGroup, InsertExpenseSubcategory,
+  FuelHistory, ExpenseGroup, ExpenseSubcategory,
+} from "../drizzle/schema";
+
+export async function getFuelHistory(userId: number, filters?: { fuelType?: string; gasStationName?: string }) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(fuelHistory.userId, userId)];
+  if (filters?.fuelType) conditions.push(eq(fuelHistory.fuelType, filters.fuelType as any));
+  if (filters?.gasStationName) conditions.push(sql`LOWER(${fuelHistory.gasStationName}) LIKE LOWER(${`%${filters.gasStationName}%`})`);
+  return db.select().from(fuelHistory).where(and(...conditions)).orderBy(sql`${fuelHistory.recordedAt} DESC`);
+}
+
+export async function createFuelHistory(data: InsertFuelHistory) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.insert(fuelHistory).values(data);
+}
+
+export async function deleteFuelHistory(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.delete(fuelHistory).where(and(eq(fuelHistory.id, id), eq(fuelHistory.userId, userId)));
+}
+
+export async function getFuelStats(userId: number, fuelType?: string) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(fuelHistory.userId, userId)];
+  if (fuelType) conditions.push(eq(fuelHistory.fuelType, fuelType as any));
+  const rows = await db.select({
+    gasStationName: fuelHistory.gasStationName,
+    fuelType: fuelHistory.fuelType,
+    minPrice: sql<string>`MIN(${fuelHistory.pricePerLiter})`,
+    maxPrice: sql<string>`MAX(${fuelHistory.pricePerLiter})`,
+    avgPrice: sql<string>`AVG(${fuelHistory.pricePerLiter})`,
+    lastPrice: sql<string>`(SELECT fh2.pricePerLiter FROM fuel_history fh2 WHERE fh2.userId = ${userId} AND fh2.gasStationName = ${fuelHistory.gasStationName} ORDER BY fh2.recordedAt DESC LIMIT 1)`,
+    lastDate: sql<string>`(SELECT fh2.recordedAt FROM fuel_history fh2 WHERE fh2.userId = ${userId} AND fh2.gasStationName = ${fuelHistory.gasStationName} ORDER BY fh2.recordedAt DESC LIMIT 1)`,
+    count: sql<number>`COUNT(*)`,
+  }).from(fuelHistory).where(and(...conditions))
+    .groupBy(fuelHistory.gasStationName, fuelHistory.fuelType);
+  return rows.map(r => ({
+    ...r,
+    minPrice: parseFloat(r.minPrice || '0'),
+    maxPrice: parseFloat(r.maxPrice || '0'),
+    avgPrice: parseFloat(r.avgPrice || '0'),
+    lastPrice: parseFloat(r.lastPrice || '0'),
+    count: Number(r.count),
+  }));
+}
+
+export async function getDistinctStations(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const rows = await db.selectDistinct({ name: fuelHistory.gasStationName })
+    .from(fuelHistory).where(eq(fuelHistory.userId, userId))
+    .orderBy(fuelHistory.gasStationName);
+  return rows.map(r => r.name);
+}
+
+// ─── Expense Groups (50/30/20) ────────────────────────────────────────────────
+export async function getExpenseGroups(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(expenseGroups).where(eq(expenseGroups.userId, userId)).orderBy(expenseGroups.groupType);
+}
+
+export async function createExpenseGroup(data: InsertExpenseGroup) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.insert(expenseGroups).values(data);
+}
+
+export async function updateExpenseGroup(id: number, userId: number, data: Partial<InsertExpenseGroup>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.update(expenseGroups).set(data as any).where(and(eq(expenseGroups.id, id), eq(expenseGroups.userId, userId)));
+}
+
+export async function deleteExpenseGroup(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.delete(expenseGroups).where(and(eq(expenseGroups.id, id), eq(expenseGroups.userId, userId)));
+}
+
+export async function getExpenseSubcategories(userId: number, groupId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(expenseSubcategories.userId, userId)];
+  if (groupId) conditions.push(eq(expenseSubcategories.groupId, groupId));
+  return db.select().from(expenseSubcategories).where(and(...conditions)).orderBy(expenseSubcategories.name);
+}
+
+export async function createExpenseSubcategory(data: InsertExpenseSubcategory) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.insert(expenseSubcategories).values(data);
+}
+
+export async function deleteExpenseSubcategory(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.delete(expenseSubcategories).where(and(eq(expenseSubcategories.id, id), eq(expenseSubcategories.userId, userId)));
+}
+
+export async function getExpenseGroupSummary(userId: number, month: number, year: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const start = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const end = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+
+  const [incomeRow] = await db.select({ total: sql<string>`COALESCE(SUM(${incomes.amount}), 0)` })
+    .from(incomes).where(and(eq(incomes.userId, userId), sql`${incomes.date} >= ${start}`, sql`${incomes.date} <= ${end}`));
+  const totalIncome = parseFloat(incomeRow?.total || '0');
+
+  const groups = await db.select().from(expenseGroups).where(eq(expenseGroups.userId, userId));
+  const subcats = await db.select().from(expenseSubcategories).where(eq(expenseSubcategories.userId, userId));
+
+  // For now, map expenses by subcategoryId to groups
+  const expenseRows = await db.select({
+    subcategoryId: expenses.categoryId,
+    total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)`,
+  }).from(expenses)
+    .where(and(eq(expenses.userId, userId), sql`${expenses.date} >= ${start}`, sql`${expenses.date} <= ${end}`))
+    .groupBy(expenses.categoryId);
+
+  const expenseBySubcat: Record<number, number> = {};
+  for (const row of expenseRows) {
+    if (row.subcategoryId) expenseBySubcat[row.subcategoryId] = parseFloat(row.total || '0');
+  }
+
+  return groups.map(group => {
+    const groupSubcats = subcats.filter(s => s.groupId === group.id);
+    const spent = groupSubcats.reduce((sum, s) => sum + (expenseBySubcat[s.id] || 0), 0);
+    const targetAmount = totalIncome * (parseFloat(group.targetPercent as string || '0') / 100);
+    return {
+      ...group,
+      targetPercent: parseFloat(group.targetPercent as string || '0'),
+      spent,
+      targetAmount,
+      percentUsed: targetAmount > 0 ? (spent / targetAmount) * 100 : 0,
+      subcategories: groupSubcats.map(s => ({ ...s, spent: expenseBySubcat[s.id] || 0 })),
+    };
+  });
 }

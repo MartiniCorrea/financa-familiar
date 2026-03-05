@@ -185,14 +185,8 @@ const shoppingRouter = router({
     })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateShoppingItem(id, ctx.user.id, data); }),
     delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteShoppingItem(input.id, ctx.user.id)),
   }),
-  prices: router({
-    history: protectedProcedure.input(z.object({ productName: z.string().optional() }).optional())
-      .query(({ ctx, input }) => db.getPriceHistory(ctx.user.id, input?.productName)),
-    add: protectedProcedure.input(z.object({
-      productName: z.string().min(1).max(150), supermarketId: z.number(), price: z.string(), unit: z.string().optional(), recordedAt: z.string(),
-    })).mutation(({ ctx, input }) => db.addPriceRecord({ ...input, userId: ctx.user.id } as any)),
-  }),
 });
+// (shopping.prices removed - use priceHistory router instead)
 
 // ─── Investments Router ───────────────────────────────────────────────────────
 const investmentsRouter = router({
@@ -219,6 +213,75 @@ const investmentsRouter = router({
   })).mutation(({ ctx, input }) => db.addInvestmentTransaction({ ...input, userId: ctx.user.id } as any)),
   transactions: protectedProcedure.input(z.object({ investmentId: z.number() }))
     .query(({ ctx, input }) => db.getInvestmentTransactions(input.investmentId, ctx.user.id)),
+});
+
+// ─── Price History Router ───────────────────────────────────────────────────────
+const priceHistoryRouter = router({
+  list: protectedProcedure.input(z.object({
+    productName: z.string().optional(),
+    supermarketId: z.number().optional(),
+  }).optional()).query(({ ctx, input }) => db.getPriceHistory(ctx.user.id, input)),
+  create: protectedProcedure.input(z.object({
+    productName: z.string().min(1).max(150),
+    supermarketId: z.number(),
+    price: z.string(),
+    unit: z.string().optional(),
+    recordedAt: z.string(),
+  })).mutation(({ ctx, input }) => db.createPriceHistory({ ...input, userId: ctx.user.id } as any)),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deletePriceHistory(input.id, ctx.user.id)),
+  comparison: protectedProcedure.input(z.object({ productName: z.string() }))
+    .query(({ ctx, input }) => db.getPriceComparison(ctx.user.id, input.productName)),
+  products: protectedProcedure.query(({ ctx }) => db.getDistinctProducts(ctx.user.id)),
+});
+
+// ─── Fuel History Router ─────────────────────────────────────────────────────
+const fuelHistoryRouter = router({
+  list: protectedProcedure.input(z.object({
+    fuelType: z.string().optional(),
+    gasStationName: z.string().optional(),
+  }).optional()).query(({ ctx, input }) => db.getFuelHistory(ctx.user.id, input)),
+  create: protectedProcedure.input(z.object({
+    gasStationName: z.string().min(1).max(150),
+    fuelType: z.enum(["gasolina_comum","gasolina_aditivada","etanol","diesel","diesel_s10","gnv"]),
+    pricePerLiter: z.string(),
+    liters: z.string().optional(),
+    totalAmount: z.string().optional(),
+    mileage: z.number().optional(),
+    recordedAt: z.string(),
+    notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.createFuelHistory({ ...input, userId: ctx.user.id } as any)),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteFuelHistory(input.id, ctx.user.id)),
+  stats: protectedProcedure.input(z.object({ fuelType: z.string().optional() }).optional())
+    .query(({ ctx, input }) => db.getFuelStats(ctx.user.id, input?.fuelType)),
+  stations: protectedProcedure.query(({ ctx }) => db.getDistinctStations(ctx.user.id)),
+});
+
+// ─── Expense Groups Router (50/30/20) ─────────────────────────────────────────
+const expenseGroupsRouter = router({
+  list: protectedProcedure.query(({ ctx }) => db.getExpenseGroups(ctx.user.id)),
+  create: protectedProcedure.input(z.object({
+    name: z.string().min(1).max(100),
+    groupType: z.enum(["necessario","nao_necessario","investimento"]),
+    targetPercent: z.string(),
+    color: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.createExpenseGroup({ ...input, userId: ctx.user.id } as any)),
+  update: protectedProcedure.input(z.object({
+    id: z.number(), name: z.string().optional(), targetPercent: z.string().optional(), color: z.string().optional(),
+  })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateExpenseGroup(id, ctx.user.id, data); }),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteExpenseGroup(input.id, ctx.user.id)),
+  subcategories: router({
+    list: protectedProcedure.input(z.object({ groupId: z.number().optional() }).optional())
+      .query(({ ctx, input }) => db.getExpenseSubcategories(ctx.user.id, input?.groupId)),
+    create: protectedProcedure.input(z.object({
+      groupId: z.number(),
+      name: z.string().min(1).max(100),
+      color: z.string().optional(),
+      icon: z.string().optional(),
+    })).mutation(({ ctx, input }) => db.createExpenseSubcategory({ ...input, userId: ctx.user.id } as any)),
+    delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteExpenseSubcategory(input.id, ctx.user.id)),
+  }),
+  summary: protectedProcedure.input(monthYearSchema)
+    .query(({ ctx, input }) => db.getExpenseGroupSummary(ctx.user.id, input.month, input.year)),
 });
 
 // ─── Dashboard Router ─────────────────────────────────────────────────────────
@@ -249,6 +312,9 @@ export const appRouter = router({
   shopping: shoppingRouter,
   investments: investmentsRouter,
   dashboard: dashboardRouter,
+  priceHistory: priceHistoryRouter,
+  fuelHistory: fuelHistoryRouter,
+  expenseGroups: expenseGroupsRouter,
 });
 
 export type AppRouter = typeof appRouter;

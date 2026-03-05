@@ -43,51 +43,50 @@
 }
 
 :root {
-  /* Elegant dark theme - deep navy with gold accents */
+  /* Light vibrant theme - clean white with blue/green/orange accents */
   --radius: 0.75rem;
 
-  --background: oklch(0.12 0.02 265);
-  --foreground: oklch(0.96 0.005 265);
-  --card: oklch(0.16 0.025 265);
-  --card-foreground: oklch(0.96 0.005 265);
-  --popover: oklch(0.14 0.022 265);
-  --popover-foreground: oklch(0.96 0.005 265);
+  /* Backgrounds - clean white */
+  --background: oklch(0.97 0.005 240);
+  --foreground: oklch(0.18 0.03 240);
+  --card: oklch(1.00 0.000 0);
+  --card-foreground: oklch(0.18 0.03 240);
+  --popover: oklch(1.00 0.000 0);
+  --popover-foreground: oklch(0.18 0.03 240);
 
-  /* Gold primary */
-  --primary: oklch(0.78 0.14 75);
-  --primary-foreground: oklch(0.12 0.02 265);
+  /* Blue primary */
+  --primary: oklch(0.55 0.20 245);
+  --primary-foreground: oklch(1.00 0.000 0);
 
-  --secondary: oklch(0.22 0.03 265);
-  --secondary-foreground: oklch(0.90 0.01 265);
-  --muted: oklch(0.20 0.025 265);
-  --muted-foreground: oklch(0.60 0.02 265);
-  --accent: oklch(0.24 0.04 265);
-  --accent-foreground: oklch(0.96 0.005 265);
-  --destructive: oklch(0.60 0.20 25);
-  --destructive-foreground: oklch(0.96 0.005 265);
-  --border: oklch(0.25 0.03 265);
-  --input: oklch(0.20 0.025 265);
-  --ring: oklch(0.78 0.14 75);
+  --secondary: oklch(0.93 0.02 240);
+  --secondary-foreground: oklch(0.30 0.04 240);
+  --muted: oklch(0.94 0.01 240);
+  --muted-foreground: oklch(0.52 0.04 240);
+  --accent: oklch(0.91 0.04 245);
+  --accent-foreground: oklch(0.30 0.08 245);
+  --destructive: oklch(0.58 0.22 25);
+  --destructive-foreground: oklch(1.00 0.000 0);
+  --border: oklch(0.88 0.02 240);
+  --input: oklch(0.93 0.015 240);
+  --ring: oklch(0.55 0.20 245);
 
-  /* Chart colors */
-  --chart-1: oklch(0.78 0.14 75);
-  --chart-2: oklch(0.72 0.17 155);
-  --chart-3: oklch(0.65 0.20 25);
-  --chart-4: oklch(0.68 0.18 230);
-  --chart-5: oklch(0.68 0.18 280);
+  /* Chart colors - vibrant blue, green, orange, yellow, purple */
+  --chart-1: oklch(0.55 0.20 245);
+  --chart-2: oklch(0.60 0.18 155);
+  --chart-3: oklch(0.68 0.20 50);
+  --chart-4: oklch(0.75 0.18 85);
+  --chart-5: oklch(0.60 0.18 290);
 
-  /* Sidebar */
-  --sidebar: oklch(0.10 0.018 265);
-  --sidebar-foreground: oklch(0.90 0.01 265);
-  --sidebar-primary: oklch(0.78 0.14 75);
-  --sidebar-primary-foreground: oklch(0.12 0.02 265);
-  --sidebar-accent: oklch(0.18 0.025 265);
-  --sidebar-accent-foreground: oklch(0.90 0.01 265);
-  --sidebar-border: oklch(0.20 0.025 265);
-  --sidebar-ring: oklch(0.78 0.14 75);
+  /* Sidebar - azul escuro elegante */
+  --sidebar: oklch(0.22 0.06 255);
+  --sidebar-foreground: oklch(0.95 0.01 240);
+  --sidebar-primary: oklch(0.65 0.22 255);
+  --sidebar-primary-foreground: oklch(1.00 0.000 0);
+  --sidebar-accent: oklch(0.30 0.06 255);
+  --sidebar-accent-foreground: oklch(0.95 0.01 240);
+  --sidebar-border: oklch(0.30 0.05 255);
+  --sidebar-ring: oklch(0.65 0.22 255);
 }
-
-/* Dark mode same as root (already dark) */
 
 @layer base {
   * {
@@ -97,26 +96,35 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 
-  /* Elegant scrollbar */
+  /* Light scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { background: oklch(0.14 0.022 265); }
-  ::-webkit-scrollbar-thumb { background: oklch(0.30 0.04 265); border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: oklch(0.40 0.05 265); }
+  ::-webkit-scrollbar-track { background: oklch(0.94 0.01 240); }
+  ::-webkit-scrollbar-thumb { background: oklch(0.78 0.05 240); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: oklch(0.65 0.08 245); }
 
   /* Finance color utilities */
-  .text-income { color: oklch(0.72 0.17 155); }
-  .text-expense { color: oklch(0.65 0.20 25); }
-  .text-investment { color: oklch(0.68 0.18 230); }
-  .bg-income\/15 { background-color: oklch(0.72 0.17 155 / 0.15); }
-  .bg-expense\/15 { background-color: oklch(0.65 0.20 25 / 0.15); }
-  .bg-investment\/15 { background-color: oklch(0.68 0.18 230 / 0.15); }
+  .text-income { color: oklch(0.52 0.18 155); }
+  .text-expense { color: oklch(0.55 0.20 25); }
+  .text-investment { color: oklch(0.55 0.20 245); }
+  .bg-income\/15 { background-color: oklch(0.52 0.18 155 / 0.12); }
+  .bg-expense\/15 { background-color: oklch(0.55 0.20 25 / 0.12); }
+  .bg-investment\/15 { background-color: oklch(0.55 0.20 245 / 0.12); }
+
+  /* 50/30/20 category colors */
+  .text-necessary { color: oklch(0.55 0.20 245); }
+  .text-unnecessary { color: oklch(0.68 0.20 50); }
+  .text-invest-cat { color: oklch(0.52 0.18 155); }
+  .bg-necessary { background-color: oklch(0.55 0.20 245 / 0.10); }
+  .bg-unnecessary { background-color: oklch(0.68 0.20 50 / 0.10); }
+  .bg-invest-cat { background-color: oklch(0.52 0.18 155 / 0.10); }
 
   .gradient-text {
-    background: linear-gradient(135deg, oklch(0.78 0.14 75), oklch(0.85 0.10 65));
+    background: linear-gradient(135deg, oklch(0.55 0.20 245), oklch(0.60 0.18 155));
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
   }
+
   button:not(:disabled),
   [role="button"]:not([aria-disabled="true"]),
   [type="button"]:not(:disabled),
@@ -131,24 +139,11 @@
 }
 
 @layer components {
-  /**
-   * Custom container utility that centers content and adds responsive padding.
-   *
-   * This overrides Tailwind's default container behavior to:
-   * - Auto-center content (mx-auto)
-   * - Add responsive horizontal padding
-   * - Set max-width for large screens
-   *
-   * Usage: <div className="container">...</div>
-   *
-   * For custom widths, use max-w-* utilities directly:
-   * <div className="max-w-6xl mx-auto px-4">...</div>
-   */
   .container {
     width: 100%;
     margin-left: auto;
     margin-right: auto;
-    padding-left: 1rem; /* 16px - mobile padding */
+    padding-left: 1rem;
     padding-right: 1rem;
   }
 
@@ -159,16 +154,16 @@
 
   @media (min-width: 640px) {
     .container {
-      padding-left: 1.5rem; /* 24px - tablet padding */
+      padding-left: 1.5rem;
       padding-right: 1.5rem;
     }
   }
 
   @media (min-width: 1024px) {
     .container {
-      padding-left: 2rem; /* 32px - desktop padding */
+      padding-left: 2rem;
       padding-right: 2rem;
-      max-width: 1280px; /* Standard content width */
+      max-width: 1280px;
     }
   }
 }

@@ -86,3 +86,17 @@
 - [ ] Comparação de preços entre supermercados
 - [ ] Importação de extrato bancário
 - [ ] Modo claro/escuro alternável
+
+## Alterações v2 (solicitadas pelo usuário)
+- [x] Tema claro vibrante com paleta azul/verde/laranja/amarelo
+- [x] Sidebar azul escuro elegante (contraste com fundo claro)
+- [x] Schema: tabela fuel_history (posto, combustível, preço, litros, data)
+- [x] Schema: tabela expense_groups (grupos 50/30/20)
+- [x] Schema: tabela expense_subcategories (subcategorias personalizadas)
+- [x] Router: priceHistory (list, create, delete, comparison, products)
+- [x] Router: fuelHistory (list, create, delete, stats, stations)
+- [x] Router: expenseGroups (list, create, update, delete, subcategories, summary)
+- [x] Página de Histórico de Preços de Mercado com comparativo entre mercados
+- [x] Página de Histórico de Combustível com comparativo entre postos
+- [x] Página 50/30/20 com grupos, subcategorias e gráfico de progresso
+- [x] Menu lateral atualizado com novos links (Combustível, Preços, 50/30/20)
