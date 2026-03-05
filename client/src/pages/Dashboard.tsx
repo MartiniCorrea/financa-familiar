@@ -4,10 +4,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, ChevronRight, ArrowUpRight, ArrowDownRight, Layers } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, ChevronRight, ArrowUpRight, ArrowDownRight, Layers, Pencil } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { toast } from "sonner";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: getMonthName(i + 1) }));
 const _cy = new Date().getFullYear();
@@ -17,15 +21,46 @@ export default function Dashboard() {
   const [month, setMonth] = useState(getCurrentMonth());
   const [year, setYear] = useState(getCurrentYear());
   const [, setLocation] = useLocation();
+  const [showBalanceModal, setShowBalanceModal] = useState(false);
+  const [balanceInput, setBalanceInput] = useState("");
 
   const { data: summary, isLoading } = trpc.dashboard.summary.useQuery({ month, year });
   const { data: evolution } = trpc.dashboard.evolution.useQuery({ months: 6 });
   const { data: groupSummary } = trpc.expenseGroups.summary.useQuery({ month, year });
+  const { data: initialBalance, refetch: refetchInitialBalance } = trpc.balance.get.useQuery();
+  const { data: totalBalance, refetch: refetchTotalBalance } = trpc.balance.getTotal.useQuery();
+
+  const utils = trpc.useUtils();
+  const setBalanceMutation = trpc.balance.set.useMutation({
+    onSuccess: () => {
+      refetchInitialBalance();
+      refetchTotalBalance();
+      utils.dashboard.summary.invalidate();
+      setShowBalanceModal(false);
+      toast.success("Saldo inicial atualizado com sucesso!");
+    },
+    onError: (err) => {
+      toast.error(`Erro ao atualizar saldo: ${err.message}`);
+    },
+  });
+
+  const handleOpenBalanceModal = () => {
+    setBalanceInput(String(initialBalance ?? 0));
+    setShowBalanceModal(true);
+  };
+
+  const handleSaveBalance = () => {
+    const amount = parseFloat(balanceInput.replace(",", "."));
+    if (isNaN(amount) || amount < 0) {
+      toast.error("Valor inválido. Digite um número válido (ex: 1500.00)");
+      return;
+    }
+    setBalanceMutation.mutate({ amount });
+  };
 
   // Gráfico de pizza usando subcategorias 50/30/20 do usuário
   const pieData = useMemo(() => {
     if (!groupSummary?.length) return [];
-    // Tenta mostrar por subcategoria primeiro
     const bySub: { name: string; value: number; color: string }[] = [];
     for (const group of groupSummary) {
       for (const sub of (group.subcategories ?? [])) {
@@ -35,32 +70,31 @@ export default function Dashboard() {
       }
     }
     if (bySub.length > 0) return bySub.sort((a, b) => b.value - a.value);
-    // Fallback: por grupo
     return groupSummary
       .filter(g => g.spent > 0)
       .map(g => ({ name: g.name, value: g.spent, color: g.color || '#6366f1' }))
       .sort((a, b) => b.value - a.value);
   }, [groupSummary]);
 
+  const totalBalanceValue = totalBalance ?? 0;
+
   const kpis = [
     {
-      title: "Receitas",
+      title: "Receitas do Mês",
       value: summary?.totalIncome ?? 0,
       icon: TrendingUp,
       color: "text-emerald-400",
       bg: "bg-emerald-400/10",
-      trend: "+",
     },
     {
-      title: "Despesas",
+      title: "Despesas do Mês",
       value: summary?.totalExpense ?? 0,
       icon: TrendingDown,
       color: "text-red-400",
       bg: "bg-red-400/10",
-      trend: "-",
     },
     {
-      title: "Saldo",
+      title: "Saldo do Mês",
       value: summary?.balance ?? 0,
       icon: Wallet,
       color: (summary?.balance ?? 0) >= 0 ? "text-primary" : "text-red-400",
@@ -109,6 +143,32 @@ export default function Dashboard() {
           </Select>
         </div>
       </div>
+
+      {/* Saldo Acumulado Total */}
+      <Card className="bg-gradient-to-r from-primary/10 to-blue-500/10 border-primary/20">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Saldo Acumulado Total</p>
+              <p className={`text-3xl font-bold ${totalBalanceValue >= 0 ? 'text-primary' : 'text-red-400'}`}>
+                {formatCurrency(totalBalanceValue)}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Saldo inicial: {formatCurrency(initialBalance ?? 0)} + todas as receitas − todas as despesas
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex items-center gap-1.5 text-xs border-primary/30 hover:bg-primary/10"
+              onClick={handleOpenBalanceModal}
+            >
+              <Pencil className="w-3 h-3" />
+              Definir saldo inicial
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -244,9 +304,8 @@ export default function Dashboard() {
                       <span className="text-xs text-muted-foreground">(meta {pct}%)</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs">
-                      <span className={isOver ? 'text-red-500 font-semibold' : 'text-muted-foreground'}>{formatCurrency(spent)}</span>
-                      <span className="text-muted-foreground">/</span>
-                      <span className="text-foreground font-medium">{formatCurrency(target)}</span>
+                      <span className={isOver ? 'text-red-500 font-semibold' : 'text-foreground'}>{formatCurrency(spent)}</span>
+                      <span className="text-muted-foreground">/ {formatCurrency(target)}</span>
                     </div>
                   </div>
                   <div className="w-full bg-accent rounded-full h-2">
@@ -314,6 +373,39 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Modal: Definir Saldo Inicial */}
+      <Dialog open={showBalanceModal} onOpenChange={setShowBalanceModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Definir Saldo Inicial</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">
+              Informe o valor que você já possui em conta antes de começar a usar o sistema. Esse valor será somado às suas receitas e subtraído das despesas para calcular o saldo acumulado total.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="balance-input">Saldo inicial (R$)</Label>
+              <Input
+                id="balance-input"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Ex: 5000.00"
+                value={balanceInput}
+                onChange={e => setBalanceInput(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && handleSaveBalance()}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBalanceModal(false)}>Cancelar</Button>
+            <Button onClick={handleSaveBalance} disabled={setBalanceMutation.isPending}>
+              {setBalanceMutation.isPending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

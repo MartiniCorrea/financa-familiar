@@ -677,3 +677,34 @@ export async function getExpenseGroupSummary(userId: number, month: number, year
     };
   });
 }
+
+// ─── Initial Balance ──────────────────────────────────────────────────────────
+export async function getInitialBalance(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+  const [row] = await db.select({ initialBalance: users.initialBalance }).from(users).where(eq(users.id, userId));
+  return parseFloat((row?.initialBalance as string) || '0');
+}
+
+export async function setInitialBalance(userId: number, amount: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.update(users).set({ initialBalance: String(amount) } as any).where(eq(users.id, userId));
+}
+
+export async function getTotalBalance(userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const [incomeResult] = await db.select({ total: sql<string>`COALESCE(SUM(${incomes.amount}), 0)` })
+    .from(incomes).where(eq(incomes.userId, userId));
+
+  const [expenseResult] = await db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
+    .from(expenses).where(eq(expenses.userId, userId));
+
+  const initialBalance = await getInitialBalance(userId);
+  const totalIncome = parseFloat(incomeResult?.total || '0');
+  const totalExpense = parseFloat(expenseResult?.total || '0');
+
+  return initialBalance + totalIncome - totalExpense;
+}

@@ -141,3 +141,10 @@
 
 ## Correções v8
 - [x] Seletores de ano dinâmicos em todo o sistema (Dashboard, Relatórios, Despesas, Receitas, Orçamento) — agora mostra 5 anos atrás até 2 anos à frente automaticamente
+
+## Melhorias v9 (saldo inicial)
+- [x] Schema: adicionar coluna initialBalance na tabela users
+- [x] DB: funções getInitialBalance e setInitialBalance
+- [x] Router: procedures balance.get e balance.set
+- [x] Dashboard: exibir saldo acumulado real (saldo inicial + receitas - despesas de todos os tempos)
+- [x] Dashboard: botão/modal para definir e editar o saldo inicial

@@ -334,6 +334,13 @@ const expenseGroupsRouter = router({
     .query(({ ctx, input }) => db.getExpenseGroupSummary(ctx.user.id, input.month, input.year)),
 });
 
+// ─── Balance Router ─────────────────────────────────────────────────────────
+const balanceRouter = router({
+  get: protectedProcedure.query(({ ctx }) => db.getInitialBalance(ctx.user.id)),
+  getTotal: protectedProcedure.query(({ ctx }) => db.getTotalBalance(ctx.user.id)),
+  set: protectedProcedure.input(z.object({ amount: z.number().min(0) })).mutation(({ ctx, input }) => db.setInitialBalance(ctx.user.id, input.amount)),
+});
+
 // ─── Dashboard Router ─────────────────────────────────────────────────────────
 const dashboardRouter = router({
   summary: protectedProcedure.input(monthYearSchema).query(({ ctx, input }) => db.getDashboardSummary(ctx.user.id, input.month, input.year)),
@@ -365,6 +372,7 @@ export const appRouter = router({
   priceHistory: priceHistoryRouter,
   fuelHistory: fuelHistoryRouter,
   expenseGroups: expenseGroupsRouter,
+  balance: balanceRouter,
 });
 
 export type AppRouter = typeof appRouter;
