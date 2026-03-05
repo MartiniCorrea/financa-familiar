@@ -650,13 +650,13 @@ export async function getExpenseGroupSummary(userId: number, month: number, year
   const groups = await db.select().from(expenseGroups).where(eq(expenseGroups.userId, userId));
   const subcats = await db.select().from(expenseSubcategories).where(eq(expenseSubcategories.userId, userId));
 
-  // For now, map expenses by subcategoryId to groups
+  // Map expenses by subcategoryId to groups
   const expenseRows = await db.select({
-    subcategoryId: expenses.categoryId,
+    subcategoryId: expenses.subcategoryId,
     total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)`,
   }).from(expenses)
     .where(and(eq(expenses.userId, userId), sql`${expenses.date} >= ${start}`, sql`${expenses.date} <= ${end}`))
-    .groupBy(expenses.categoryId);
+    .groupBy(expenses.subcategoryId);
 
   const expenseBySubcat: Record<number, number> = {};
   for (const row of expenseRows) {

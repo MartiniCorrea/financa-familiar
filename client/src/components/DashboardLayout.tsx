@@ -78,7 +78,6 @@ const menuGroups = [
     label: "Utilidades",
     items: [
       { icon: ShoppingCart, label: "Mercado", path: "/mercado" },
-      { icon: Tag, label: "Preços", path: "/precos" },
       { icon: Fuel, label: "Combustível", path: "/combustivel" },
       { icon: Users, label: "Família", path: "/familia" },
     ],

@@ -1,0 +1,9 @@
+{
+  "query": "\nALTER TABLE expenses ADD COLUMN subcategoryId INT NULL;\nALTER TABLE bills ADD COLUMN subcategoryId INT NULL;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2kFLXQuFv4V4Y4E.cb116c6777a1 --database S72dXysLKGdD9WHAuQpZuU --execute \nALTER TABLE expenses ADD COLUMN subcategoryId INT NULL;\nALTER TABLE bills ADD COLUMN subcategoryId INT NULL;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 513
+}

@@ -100,3 +100,12 @@
 - [x] Página de Histórico de Combustível com comparativo entre postos
 - [x] Página 50/30/20 com grupos, subcategorias e gráfico de progresso
 - [x] Menu lateral atualizado com novos links (Combustível, Preços, 50/30/20)
+
+## Correções v3 (bugs reportados)
+- [ ] Bug: subcategorias criadas não aparecem na lista dentro do grupo
+- [ ] Bug: textos sobrepostos/encavalados na página 50/30/20
+- [ ] Integrar categorias 50/30/20 no formulário de despesas
+- [ ] Integrar categorias 50/30/20 no formulário de contas a pagar
+- [ ] Integrar categorias 50/30/20 no formulário de cartões
+- [ ] Módulo de mercado: registro de gastos reais por visita ao mercado
+- [ ] Módulo de mercado: banco de dados automático de preços por produto/mercado

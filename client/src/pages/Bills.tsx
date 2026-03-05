@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, CheckCircle, Receipt, ArrowDownRight, ArrowUpRight, Clock, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, CheckCircle, Receipt, ArrowDownRight, ArrowUpRight, Clock, AlertTriangle, Layers } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -20,8 +20,8 @@ const BILL_CATEGORIES = [
   { value: 'renda_extra', label: '💰 Renda Extra' }, { value: 'outros', label: '📦 Outros' },
 ];
 
-type BillForm = { description: string; amount: string; type: 'pagar' | 'receber'; dueDate: string; category: string; notes: string; };
-const emptyForm: BillForm = { description: '', amount: '', type: 'pagar', dueDate: getTodayString(), category: 'outros', notes: '' };
+type BillForm = { description: string; amount: string; type: 'pagar' | 'receber'; dueDate: string; category: string; notes: string; subcategoryId: string; };
+const emptyForm: BillForm = { description: '', amount: '', type: 'pagar', dueDate: getTodayString(), category: 'outros', notes: '', subcategoryId: '' };
 
 export default function Bills() {
   const [tab, setTab] = useState('pendente');
@@ -30,6 +30,8 @@ export default function Bills() {
 
   const utils = trpc.useUtils();
   const { data: bills = [], isLoading } = trpc.bills.list.useQuery({ status: tab === 'todos' ? undefined : tab as any });
+  const { data: expenseGroups = [] } = trpc.expenseGroups.list.useQuery();
+  const { data: allSubcats = [] } = trpc.expenseGroups.subcategories.list.useQuery({});
   const createMutation = trpc.bills.create.useMutation({
     onSuccess: () => { utils.bills.list.invalidate(); utils.dashboard.summary.invalidate(); setOpen(false); setForm(emptyForm); toast.success("Conta adicionada!"); },
     onError: () => toast.error("Erro ao salvar conta"),
@@ -51,7 +53,7 @@ export default function Bills() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.description || !form.amount || !form.dueDate) return toast.error("Preencha os campos obrigatórios");
-    createMutation.mutate({ ...form, amount: form.amount, category: form.category as any });
+    createMutation.mutate({ ...form, amount: form.amount, category: form.category as any, subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined });
   }
 
   function getStatusBadge(bill: any) {
@@ -113,6 +115,38 @@ export default function Bills() {
                   </Select>
                 </div>
               </div>
+              {expenseGroups.length > 0 && (
+                <div className="space-y-1.5">
+                  <Label className="flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-primary" />
+                    Subcategoria 50/30/20
+                    <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
+                  </Label>
+                  <Select value={form.subcategoryId || "none"} onValueChange={v => setForm(f => ({ ...f, subcategoryId: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem subcategoria</SelectItem>
+                      {expenseGroups.map(group => {
+                        const groupSubcats = allSubcats.filter(s => s.groupId === group.id);
+                        if (groupSubcats.length === 0) return null;
+                        return (
+                          <div key={group.id}>
+                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.name}</div>
+                            {groupSubcats.map(sub => (
+                              <SelectItem key={sub.id} value={String(sub.id)}>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: sub.color || "#6366f1" }} />
+                                  {sub.name}
+                                </div>
+                              </SelectItem>
+                            ))}
+                          </div>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label className="text-foreground">Observações</Label>
                 <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Opcional" className="bg-input border-border text-foreground" />

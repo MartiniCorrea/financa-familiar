@@ -12,11 +12,10 @@ import Bills from "./pages/Bills";
 import CreditCards from "./pages/CreditCards";
 import Budget from "./pages/Budget";
 import Goals from "./pages/Goals";
-import Shopping from "./pages/Shopping";
+import Market from "./pages/Market";
 import Investments from "./pages/Investments";
 import Reports from "./pages/Reports";
 import FamilyMembers from "./pages/FamilyMembers";
-import PriceHistory from "./pages/PriceHistory";
 import FuelHistory from "./pages/FuelHistory";
 import ExpenseGroups from "./pages/ExpenseGroups";
 
@@ -31,8 +30,7 @@ function AppRoutes() {
         <Route path="/cartoes" component={CreditCards} />
         <Route path="/orcamento" component={Budget} />
         <Route path="/metas" component={Goals} />
-        <Route path="/mercado" component={Shopping} />
-        <Route path="/precos" component={PriceHistory} />
+        <Route path="/mercado" component={Market} />
         <Route path="/combustivel" component={FuelHistory} />
         <Route path="/categorias" component={ExpenseGroups} />
         <Route path="/investimentos" component={Investments} />

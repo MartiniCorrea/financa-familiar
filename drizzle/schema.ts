@@ -107,6 +107,7 @@ export const expenses = mysqlTable("expenses", {
   familyMemberId: int("familyMemberId"),
   creditCardId: int("creditCardId"),
   categoryId: int("categoryId"),
+  subcategoryId: int("subcategoryId"),
   description: varchar("description", { length: 255 }).notNull(),
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
   parentCategory: mysqlEnum("parentCategory", [
@@ -133,6 +134,7 @@ export const bills = mysqlTable("bills", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   familyMemberId: int("familyMemberId"),
+  subcategoryId: int("subcategoryId"),
   description: varchar("description", { length: 255 }).notNull(),
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
   type: mysqlEnum("type", ["pagar", "receber"]).notNull().default("pagar"),
