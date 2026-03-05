@@ -40,7 +40,6 @@ export const bankAccounts = mysqlTable("bank_accounts", {
   initialBalance: decimal("initialBalance", { precision: 15, scale: 2 }).notNull().default("0"),
   isActive: boolean("isActive").default(true),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
 export type BankAccount = typeof bankAccounts.$inferSelect;

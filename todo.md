@@ -164,3 +164,6 @@
 - [x] Formulário de Contas a Pagar: seletor de conta bancária de origem
 - [x] Dashboard: remover saldo inicial único, mostrar cards de saldo por conta + total consolidado
 - [x] Sidebar: adicionar link para Contas Bancárias
+
+## Correções v11
+- [x] Bug: erro ao cadastrar conta bancária — coluna updatedAt removida do schema (não existe no banco do VPS)
