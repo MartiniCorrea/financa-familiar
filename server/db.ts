@@ -1,14 +1,14 @@
 import { and, asc, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
-  Bill, Budget, CreditCard, Expense, ExpenseCategory, FamilyMember,
-  FinancialGoal, GoalContribution, Income, InsertBill, InsertBudget,
+  BankAccount, Bill, Budget, CreditCard, Expense, ExpenseCategory, FamilyMember,
+  FinancialGoal, GoalContribution, Income, InsertBankAccount, InsertBill, InsertBudget,
   InsertCreditCard, InsertExpense, InsertExpenseCategory, InsertFamilyMember,
   InsertFinancialGoal, InsertGoalContribution, InsertIncome, InsertInvestment,
   InsertInvestmentTransaction, InsertPriceHistory, InsertShoppingItem,
   InsertShoppingList, InsertSupermarket, InsertUser, Investment,
   InvestmentTransaction, PriceHistory, ShoppingItem, ShoppingList, Supermarket,
-  bills, budgets, creditCards, expenseCategories, expenses, familyMembers,
+  bankAccounts, bills, budgets, creditCards, expenseCategories, expenses, familyMembers,
   financialGoals, goalContributions, incomes, investmentTransactions,
   investments, priceHistory, shoppingItems, shoppingLists, supermarkets, users,
 } from "../drizzle/schema";
@@ -707,4 +707,101 @@ export async function getTotalBalance(userId: number): Promise<number> {
   const totalExpense = parseFloat(expenseResult?.total || '0');
 
   return initialBalance + totalIncome - totalExpense;
+}
+
+// ─── Bank Accounts ────────────────────────────────────────────────────────────
+export async function getBankAccounts(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(bankAccounts)
+    .where(and(eq(bankAccounts.userId, userId), eq(bankAccounts.isActive, true)))
+    .orderBy(asc(bankAccounts.name));
+}
+
+export async function createBankAccount(data: InsertBankAccount) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.insert(bankAccounts).values(data);
+}
+
+export async function updateBankAccount(id: number, userId: number, data: Partial<InsertBankAccount>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.update(bankAccounts).set(data as any).where(and(eq(bankAccounts.id, id), eq(bankAccounts.userId, userId)));
+}
+
+export async function deleteBankAccount(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Soft delete: apenas desativa a conta
+  return db.update(bankAccounts).set({ isActive: false } as any).where(and(eq(bankAccounts.id, id), eq(bankAccounts.userId, userId)));
+}
+
+export async function getBankAccountBalance(accountId: number, userId: number): Promise<number> {
+  const db = await getDb();
+  if (!db) return 0;
+
+  const [account] = await db.select({ initialBalance: bankAccounts.initialBalance })
+    .from(bankAccounts).where(and(eq(bankAccounts.id, accountId), eq(bankAccounts.userId, userId)));
+  if (!account) return 0;
+
+  const [incomeResult] = await db.select({ total: sql<string>`COALESCE(SUM(${incomes.amount}), 0)` })
+    .from(incomes).where(and(eq(incomes.userId, userId), eq(incomes.bankAccountId, accountId)));
+
+  const [expenseResult] = await db.select({ total: sql<string>`COALESCE(SUM(${expenses.amount}), 0)` })
+    .from(expenses).where(and(eq(expenses.userId, userId), eq(expenses.bankAccountId, accountId)));
+
+  const initial = parseFloat((account.initialBalance as string) || '0');
+  const totalIncome = parseFloat(incomeResult?.total || '0');
+  const totalExpense = parseFloat(expenseResult?.total || '0');
+  return initial + totalIncome - totalExpense;
+}
+
+export async function getBankAccountsWithBalance(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  const accounts = await db.select().from(bankAccounts)
+    .where(and(eq(bankAccounts.userId, userId), eq(bankAccounts.isActive, true)))
+    .orderBy(asc(bankAccounts.name));
+
+  const results = await Promise.all(accounts.map(async (acc) => {
+    const balance = await getBankAccountBalance(acc.id, userId);
+    return { ...acc, balance, initialBalance: parseFloat((acc.initialBalance as string) || '0') };
+  }));
+
+  return results;
+}
+
+export async function getBankAccountTransactions(accountId: number, userId: number, filters?: { month?: number; year?: number }) {
+  const db = await getDb();
+  if (!db) return [];
+
+  let incomeConditions = [eq(incomes.userId, userId), eq(incomes.bankAccountId, accountId)];
+  let expenseConditions = [eq(expenses.userId, userId), eq(expenses.bankAccountId, accountId)];
+
+  if (filters?.month && filters?.year) {
+    const start = `${filters.year}-${String(filters.month).padStart(2, '0')}-01`;
+    const lastDay = new Date(filters.year, filters.month, 0).getDate();
+    const end = `${filters.year}-${String(filters.month).padStart(2, '0')}-${lastDay}`;
+    incomeConditions.push(sql`${incomes.date} >= ${start}`, sql`${incomes.date} <= ${end}` as any);
+    expenseConditions.push(sql`${expenses.date} >= ${start}`, sql`${expenses.date} <= ${end}` as any);
+  }
+
+  const incomeRows = await db.select({
+    id: incomes.id, type: sql<string>`'receita'`, description: incomes.description,
+    amount: incomes.amount, date: incomes.date, category: incomes.category,
+  }).from(incomes).where(and(...incomeConditions)).orderBy(desc(incomes.date));
+
+  const expenseRows = await db.select({
+    id: expenses.id, type: sql<string>`'despesa'`, description: expenses.description,
+    amount: expenses.amount, date: expenses.date, category: expenses.parentCategory,
+  }).from(expenses).where(and(...expenseConditions)).orderBy(desc(expenses.date));
+
+  const allTx = [
+    ...incomeRows.map(r => ({ ...r, amount: parseFloat(r.amount as string), isIncome: true })),
+    ...expenseRows.map(r => ({ ...r, amount: parseFloat(r.amount as string), isIncome: false })),
+  ].sort((a, b) => new Date(b.date as unknown as string).getTime() - new Date(a.date as unknown as string).getTime());
+
+  return allTx;
 }

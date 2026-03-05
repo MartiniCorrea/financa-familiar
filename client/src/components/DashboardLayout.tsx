@@ -23,6 +23,7 @@ import {
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   BarChart3,
+  Building2,
   CreditCard,
   DollarSign,
   Fuel,
@@ -54,9 +55,10 @@ const menuGroups = [
   {
     label: "Finanças",
     items: [
+      { icon: Building2, label: "Contas Bancárias", path: "/contas-bancarias" },
       { icon: TrendingUp, label: "Receitas", path: "/receitas" },
       { icon: TrendingDown, label: "Despesas", path: "/despesas" },
-      { icon: Receipt, label: "Contas", path: "/contas" },
+      { icon: Receipt, label: "Contas a Pagar", path: "/contas" },
       { icon: CreditCard, label: "Cartões", path: "/cartoes" },
     ],
   },

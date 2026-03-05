@@ -19,6 +19,7 @@ import Reports from "./pages/Reports";
 import FamilyMembers from "./pages/FamilyMembers";
 import FuelHistory from "./pages/FuelHistory";
 import ExpenseGroups from "./pages/ExpenseGroups";
+import BankAccounts from "./pages/BankAccounts";
 
 function AppRoutes() {
   return (
@@ -40,6 +41,7 @@ function AppRoutes() {
         <Route path="/investimentos" component={Investments} />
         <Route path="/relatorios" component={Reports} />
         <Route path="/familia" component={FamilyMembers} />
+        <Route path="/contas-bancarias" component={BankAccounts} />
           <Route path="/404" component={NotFound} />
           <Route component={NotFound} />
         </Switch>

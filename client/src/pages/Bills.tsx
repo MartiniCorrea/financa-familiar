@@ -12,8 +12,8 @@ import { Plus, Trash2, CheckCircle, Receipt, ArrowDownRight, ArrowUpRight, Clock
 import { useState } from "react";
 import { toast } from "sonner";
 
-type BillForm = { description: string; amount: string; type: 'pagar' | 'receber'; dueDate: string; notes: string; subcategoryId: string; };
-const emptyForm: BillForm = { description: '', amount: '', type: 'pagar', dueDate: getTodayString(), notes: '', subcategoryId: '' };
+type BillForm = { description: string; amount: string; type: 'pagar' | 'receber'; dueDate: string; notes: string; subcategoryId: string; bankAccountId: string; };
+const emptyForm: BillForm = { description: '', amount: '', type: 'pagar', dueDate: getTodayString(), notes: '', subcategoryId: '', bankAccountId: '' };
 
 export default function Bills() {
   const [tab, setTab] = useState('pendente');
@@ -21,6 +21,7 @@ export default function Bills() {
   const [form, setForm] = useState<BillForm>(emptyForm);
 
   const utils = trpc.useUtils();
+  const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
   const { data: bills = [], isLoading } = trpc.bills.list.useQuery({ status: tab === 'todos' ? undefined : tab as any });
   const { data: expenseGroups = [] } = trpc.expenseGroups.list.useQuery();
   const { data: allSubcats = [] } = trpc.expenseGroups.subcategories.list.useQuery({});
@@ -45,7 +46,7 @@ export default function Bills() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.description || !form.amount || !form.dueDate) return toast.error("Preencha os campos obrigatórios");
-    createMutation.mutate({ ...form, amount: form.amount, category: 'outros' as any, subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined });
+    createMutation.mutate({ ...form, amount: form.amount, category: 'outros' as any, subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined, bankAccountId: form.bankAccountId ? parseInt(form.bankAccountId) : undefined });
   }
 
   function getStatusBadge(bill: any) {
@@ -125,6 +126,18 @@ export default function Bills() {
                         </div>
                       );
                     })}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground">Conta Bancária</Label>
+                <Select value={form.bankAccountId} onValueChange={v => setForm(f => ({ ...f, bankAccountId: v }))}>
+                  <SelectTrigger className="bg-input border-border text-foreground"><SelectValue placeholder="Selecione a conta (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Sem conta específica</SelectItem>
+                    {bankAccounts.map((acc: any) => (
+                      <SelectItem key={acc.id} value={String(acc.id)}>{acc.name}{acc.bank ? ` — ${acc.bank}` : ''}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

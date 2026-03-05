@@ -1,0 +1,9 @@
+{
+  "query": "\nCREATE TABLE IF NOT EXISTS bank_accounts (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  userId INT NOT NULL,\n  name VARCHAR(100) NOT NULL,\n  bank VARCHAR(100),\n  type ENUM('corrente','poupanca','carteira','investimento','outro') NOT NULL DEFAULT 'corrente',\n  color VARCHAR(20) DEFAULT '#6366f1',\n  icon VARCHAR(50) DEFAULT 'building-2',\n  initialBalance DECIMAL(15,2) NOT NULL DEFAULT 0.00,\n  isActive BOOLEAN DEFAULT TRUE,\n  createdAt TIMESTAMP NOT NULL DEFAULT NOW(),\n  updatedAt TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP\n);\n\nALTER TABLE incomes ADD COLUMN bankAccountId INT NULL AFTER familyMemberId;\nALTER TABLE expenses ADD COLUMN bankAccountId INT NULL AFTER familyMemberId;\nALTER TABLE bills ADD COLUMN bankAccountId INT NULL AFTER familyMemberId;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2kFLXQuFv4V4Y4E.cb116c6777a1 --database S72dXysLKGdD9WHAuQpZuU --execute \nCREATE TABLE IF NOT EXISTS bank_accounts (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  userId INT NOT NULL,\n  name VARCHAR(100) NOT NULL,\n  bank VARCHAR(100),\n  type ENUM('corrente','poupanca','carteira','investimento','outro') NOT NULL DEFAULT 'corrente',\n  color VARCHAR(20) DEFAULT '#6366f1',\n  icon VARCHAR(50) DEFAULT 'building-2',\n  initialBalance DECIMAL(15,2) NOT NULL DEFAULT 0.00,\n  isActive BOOLEAN DEFAULT TRUE,\n  createdAt TIMESTAMP NOT NULL DEFAULT NOW(),\n  updatedAt TIMESTAMP NOT NULL DEFAULT NOW() ON UPDATE CURRENT_TIMESTAMP\n);\n\nALTER TABLE incomes ADD COLUMN bankAccountId INT NULL AFTER familyMemberId;\nALTER TABLE expenses ADD COLUMN bankAccountId INT NULL AFTER familyMemberId;\nALTER TABLE bills ADD COLUMN bankAccountId INT NULL AFTER familyMemberId;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 787
+}

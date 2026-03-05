@@ -24,6 +24,7 @@ type IncomeForm = {
   category: string;
   date: string;
   notes: string;
+  bankAccountId: string;
 };
 
 const emptyForm: IncomeForm = {
@@ -32,6 +33,7 @@ const emptyForm: IncomeForm = {
   category: 'salario',
   date: getTodayString(),
   notes: '',
+  bankAccountId: '',
 };
 
 export default function Incomes() {
@@ -43,6 +45,7 @@ export default function Incomes() {
   const [form, setForm] = useState<IncomeForm>(emptyForm);
 
   const utils = trpc.useUtils();
+  const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
   const { data: incomes = [], isLoading } = trpc.incomes.list.useQuery({ month, year });
   const createMutation = trpc.incomes.create.useMutation({
     onSuccess: () => { utils.incomes.list.invalidate(); utils.dashboard.summary.invalidate(); setOpen(false); setForm(emptyForm); toast.success("Receita adicionada!"); },
@@ -63,10 +66,11 @@ export default function Incomes() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.description || !form.amount || !form.date) return toast.error("Preencha os campos obrigatórios");
+    const bankAccountId = form.bankAccountId ? parseInt(form.bankAccountId) : undefined;
     if (editId) {
-      updateMutation.mutate({ id: editId, ...form, amount: form.amount, category: form.category as any });
+      updateMutation.mutate({ id: editId, ...form, amount: form.amount, category: form.category as any, bankAccountId: bankAccountId ?? null });
     } else {
-      createMutation.mutate({ ...form, amount: form.amount, category: form.category as any });
+      createMutation.mutate({ ...form, amount: form.amount, category: form.category as any, bankAccountId });
     }
   }
 
@@ -78,6 +82,7 @@ export default function Incomes() {
       category: income.category,
       date: typeof income.date === 'string' ? income.date : new Date(income.date).toISOString().split('T')[0],
       notes: income.notes ?? '',
+      bankAccountId: income.bankAccountId ? String(income.bankAccountId) : '',
     });
     setOpen(true);
   }
@@ -120,6 +125,18 @@ export default function Incomes() {
                   <SelectTrigger className="bg-input border-border text-foreground"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {INCOME_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.icon} {c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground">Conta Bancária</Label>
+                <Select value={form.bankAccountId} onValueChange={v => setForm(f => ({ ...f, bankAccountId: v }))}>
+                  <SelectTrigger className="bg-input border-border text-foreground"><SelectValue placeholder="Selecione a conta (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Sem conta específica</SelectItem>
+                    {bankAccounts.map((acc: any) => (
+                      <SelectItem key={acc.id} value={String(acc.id)}>{acc.name}{acc.bank ? ` — ${acc.bank}` : ''}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

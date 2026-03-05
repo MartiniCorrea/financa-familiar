@@ -148,3 +148,19 @@
 - [x] Router: procedures balance.get e balance.set
 - [x] Dashboard: exibir saldo acumulado real (saldo inicial + receitas - despesas de todos os tempos)
 - [x] Dashboard: botão/modal para definir e editar o saldo inicial
+
+## Módulo v10 — Contas Bancárias (inspirado no Mobills)
+- [x] Schema: tabela bank_accounts (id, userId, name, bank, type, color, icon, initialBalance, isActive)
+- [x] Schema: coluna bankAccountId em incomes, expenses e bills
+- [x] DB: funções CRUD para bank_accounts
+- [x] DB: função getAccountBalance (saldo inicial + receitas - despesas vinculadas)
+- [x] DB: função getAccountsWithBalance (lista todas contas com saldo calculado)
+- [x] Router: bankAccounts (list, create, update, delete, getBalance)
+- [x] Página /contas-bancarias: listagem com cards de saldo por conta
+- [x] Página /contas-bancarias: modal de criação/edição com tipo (corrente, poupança, carteira, etc.), banco, cor e ícone
+- [x] Página /contas-bancarias: extrato da conta (histórico de movimentações vinculadas)
+- [x] Formulário de Receitas: seletor de conta bancária de origem
+- [x] Formulário de Despesas: seletor de conta bancária de origem
+- [x] Formulário de Contas a Pagar: seletor de conta bancária de origem
+- [x] Dashboard: remover saldo inicial único, mostrar cards de saldo por conta + total consolidado
+- [x] Sidebar: adicionar link para Contas Bancárias

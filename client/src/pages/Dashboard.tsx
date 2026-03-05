@@ -29,6 +29,7 @@ export default function Dashboard() {
   const { data: groupSummary } = trpc.expenseGroups.summary.useQuery({ month, year });
   const { data: initialBalance, refetch: refetchInitialBalance } = trpc.balance.get.useQuery();
   const { data: totalBalance, refetch: refetchTotalBalance } = trpc.balance.getTotal.useQuery();
+  const { data: bankAccountsWithBalance } = trpc.bankAccounts.listWithBalance.useQuery();
 
   const utils = trpc.useUtils();
   const setBalanceMutation = trpc.balance.set.useMutation({
@@ -147,26 +148,46 @@ export default function Dashboard() {
       {/* Saldo Acumulado Total */}
       <Card className="bg-gradient-to-r from-primary/10 to-blue-500/10 border-primary/20">
         <CardContent className="p-5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Saldo Acumulado Total</p>
+              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Saldo Total Consolidado</p>
               <p className={`text-3xl font-bold ${totalBalanceValue >= 0 ? 'text-primary' : 'text-red-400'}`}>
                 {formatCurrency(totalBalanceValue)}
               </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Saldo inicial: {formatCurrency(initialBalance ?? 0)} + todas as receitas − todas as despesas
-              </p>
+              {!bankAccountsWithBalance?.length && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Saldo inicial: {formatCurrency(initialBalance ?? 0)} + todas as receitas − todas as despesas
+                </p>
+              )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex items-center gap-1.5 text-xs border-primary/30 hover:bg-primary/10"
-              onClick={handleOpenBalanceModal}
-            >
-              <Pencil className="w-3 h-3" />
-              Definir saldo inicial
-            </Button>
+            {!bankAccountsWithBalance?.length && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1.5 text-xs border-primary/30 hover:bg-primary/10"
+                onClick={handleOpenBalanceModal}
+              >
+                <Pencil className="w-3 h-3" />
+                Definir saldo inicial
+              </Button>
+            )}
           </div>
+          {bankAccountsWithBalance && bankAccountsWithBalance.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {bankAccountsWithBalance.map((acc: any) => (
+                <div key={acc.id} className="bg-background/40 rounded-xl p-3 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: (acc.color || '#6366f1') + '22' }}>
+                    <span className="text-base" style={{ color: acc.color || '#6366f1' }}>&#9679;</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{acc.name}</p>
+                    {acc.bank && <p className="text-xs text-muted-foreground truncate">{acc.bank}</p>}
+                    <p className={`text-sm font-bold ${acc.balance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{formatCurrency(acc.balance)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 

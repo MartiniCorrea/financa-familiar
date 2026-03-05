@@ -28,6 +28,24 @@ export const users = mysqlTable("users", {
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
 
+// ─── Bank Accounts ─────────────────────────────────────────────────────────
+export const bankAccounts = mysqlTable("bank_accounts", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  bank: varchar("bank", { length: 100 }),
+  type: mysqlEnum("type", ["corrente","poupanca","carteira","investimento","outro"]).notNull().default("corrente"),
+  color: varchar("color", { length: 20 }).default("#6366f1"),
+  icon: varchar("icon", { length: 50 }).default("building-2"),
+  initialBalance: decimal("initialBalance", { precision: 15, scale: 2 }).notNull().default("0"),
+  isActive: boolean("isActive").default(true),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type BankAccount = typeof bankAccounts.$inferSelect;
+export type InsertBankAccount = typeof bankAccounts.$inferInsert;
+
 // ─── Family Members ───────────────────────────────────────────────────────────
 export const familyMembers = mysqlTable("family_members", {
   id: int("id").autoincrement().primaryKey(),
@@ -46,6 +64,7 @@ export const incomes = mysqlTable("incomes", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   familyMemberId: int("familyMemberId"),
+  bankAccountId: int("bankAccountId"),
   description: varchar("description", { length: 255 }).notNull(),
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
   category: mysqlEnum("category", [
@@ -108,6 +127,7 @@ export const expenses = mysqlTable("expenses", {
   userId: int("userId").notNull(),
   familyMemberId: int("familyMemberId"),
   creditCardId: int("creditCardId"),
+  bankAccountId: int("bankAccountId"),
   categoryId: int("categoryId"),
   subcategoryId: int("subcategoryId"),
   description: varchar("description", { length: 255 }).notNull(),
@@ -136,10 +156,11 @@ export const bills = mysqlTable("bills", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   familyMemberId: int("familyMemberId"),
+  bankAccountId: int("bankAccountId"),
   subcategoryId: int("subcategoryId"),
   description: varchar("description", { length: 255 }).notNull(),
   amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
-  type: mysqlEnum("type", ["pagar", "receber"]).notNull().default("pagar"),
+  type: mysqlEnum("type", ["pagar","receber"]).notNull().default("pagar"),
   category: mysqlEnum("category", [
     "habitacao", "alimentacao", "saude", "educacao",
     "transporte", "vestuario", "lazer", "financeiro",

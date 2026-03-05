@@ -8,7 +8,38 @@ import * as db from "./db";
 // ─── Shared Schemas ───────────────────────────────────────────────────────────
 const monthYearSchema = z.object({ month: z.number().min(1).max(12), year: z.number().min(2000).max(2100) });
 
-// ─── Family Members Router ────────────────────────────────────────────────────
+// ─── Bank Accounts Router ─────────────────────────────────────────────────────────
+const bankAccountsRouter = router({
+  list: protectedProcedure.query(({ ctx }) => db.getBankAccounts(ctx.user.id)),
+  listWithBalance: protectedProcedure.query(({ ctx }) => db.getBankAccountsWithBalance(ctx.user.id)),
+  getBalance: protectedProcedure.input(z.object({ accountId: z.number() }))
+    .query(({ ctx, input }) => db.getBankAccountBalance(input.accountId, ctx.user.id)),
+  getTransactions: protectedProcedure.input(z.object({
+    accountId: z.number(),
+    month: z.number().optional(),
+    year: z.number().optional(),
+  })).query(({ ctx, input }) => db.getBankAccountTransactions(input.accountId, ctx.user.id, { month: input.month, year: input.year })),
+  create: protectedProcedure.input(z.object({
+    name: z.string().min(1).max(100),
+    bank: z.string().optional(),
+    type: z.enum(["corrente","poupanca","carteira","investimento","outro"]).default("corrente"),
+    color: z.string().optional(),
+    icon: z.string().optional(),
+    initialBalance: z.string().default("0"),
+  })).mutation(({ ctx, input }) => db.createBankAccount({ ...input, userId: ctx.user.id } as any)),
+  update: protectedProcedure.input(z.object({
+    id: z.number(),
+    name: z.string().optional(),
+    bank: z.string().optional(),
+    type: z.enum(["corrente","poupanca","carteira","investimento","outro"]).optional(),
+    color: z.string().optional(),
+    icon: z.string().optional(),
+    initialBalance: z.string().optional(),
+  })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateBankAccount(id, ctx.user.id, data as any); }),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteBankAccount(input.id, ctx.user.id)),
+});
+
+// ─── Family Members Router ─────────────────────────────────────────────────────────
 const familyMembersRouter = router({
   list: protectedProcedure.query(({ ctx }) => db.getFamilyMembers(ctx.user.id)),
   create: protectedProcedure.input(z.object({
@@ -32,6 +63,7 @@ const incomesRouter = router({
     category: z.enum(["salario","renda_extra","pensao","aluguel","investimento","freelance","bonus","dividendos","outros"]),
     date: z.string(),
     familyMemberId: z.number().optional(),
+    bankAccountId: z.number().optional(),
     isRecurring: z.boolean().optional(),
     recurringDay: z.number().optional(),
     notes: z.string().optional(),
@@ -40,6 +72,7 @@ const incomesRouter = router({
     id: z.number(), description: z.string().optional(), amount: z.string().optional(),
     category: z.enum(["salario","renda_extra","pensao","aluguel","investimento","freelance","bonus","dividendos","outros"]).optional(),
     date: z.string().optional(), familyMemberId: z.number().nullable().optional(),
+    bankAccountId: z.number().nullable().optional(),
     isRecurring: z.boolean().optional(), notes: z.string().optional(),
   })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateIncome(id, ctx.user.id, data as any); }),
   delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteIncome(input.id, ctx.user.id)),
@@ -55,6 +88,7 @@ const expensesRouter = router({
     parentCategory: z.enum(["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros"]),
     date: z.string(),
     familyMemberId: z.number().optional(),
+    bankAccountId: z.number().optional(),
     creditCardId: z.number().optional(),
     categoryId: z.number().optional(),
     subcategoryId: z.number().optional(),
@@ -68,6 +102,7 @@ const expensesRouter = router({
     id: z.number(), description: z.string().optional(), amount: z.string().optional(),
     parentCategory: z.enum(["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros"]).optional(),
     date: z.string().optional(), familyMemberId: z.number().nullable().optional(),
+    bankAccountId: z.number().nullable().optional(),
     creditCardId: z.number().nullable().optional(), subcategoryId: z.number().nullable().optional(),
     paymentMethod: z.enum(["dinheiro","debito","credito","pix","transferencia","boleto","outros"]).optional(),
     notes: z.string().optional(),
@@ -87,6 +122,7 @@ const billsRouter = router({
     dueDate: z.string(),
     category: z.enum(["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros","salario","renda_extra"]).optional(),
     familyMemberId: z.number().optional(),
+    bankAccountId: z.number().optional(),
     subcategoryId: z.number().optional(),
     isRecurring: z.boolean().optional(),
     recurringDay: z.number().optional(),
@@ -373,6 +409,7 @@ export const appRouter = router({
   fuelHistory: fuelHistoryRouter,
   expenseGroups: expenseGroupsRouter,
   balance: balanceRouter,
+  bankAccounts: bankAccountsRouter,
 });
 
 export type AppRouter = typeof appRouter;

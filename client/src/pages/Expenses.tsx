@@ -26,12 +26,12 @@ const PAYMENT_METHODS = [
 type ExpenseForm = {
   description: string; amount: string; date: string;
   paymentMethod: string; installments: string; notes: string;
-  subcategoryId: string;
+  subcategoryId: string; bankAccountId: string;
 };
 
 const emptyForm: ExpenseForm = {
   description: '', amount: '', date: getTodayString(),
-  paymentMethod: 'outros', installments: '1', notes: '', subcategoryId: '',
+  paymentMethod: 'outros', installments: '1', notes: '', subcategoryId: '', bankAccountId: '',
 };
 
 export default function Expenses() {
@@ -44,6 +44,7 @@ export default function Expenses() {
   const [form, setForm] = useState<ExpenseForm>(emptyForm);
 
   const utils = trpc.useUtils();
+  const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
   const { data: expenses = [], isLoading } = trpc.expenses.list.useQuery({ month, year });
   // Busca grupos e subcategorias para o seletor 50/30/20
   const { data: expenseGroups = [] } = trpc.expenseGroups.list.useQuery();
@@ -77,8 +78,9 @@ export default function Expenses() {
       paymentMethod: form.paymentMethod as any,
       installments: parseInt(form.installments) || 1,
       subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined,
+      bankAccountId: form.bankAccountId ? parseInt(form.bankAccountId) : undefined,
     };
-    if (editId) updateMutation.mutate({ id: editId, ...data });
+    if (editId) updateMutation.mutate({ id: editId, ...data, bankAccountId: data.bankAccountId ?? null });
     else createMutation.mutate(data);
   }
 
@@ -91,6 +93,7 @@ export default function Expenses() {
       installments: String(expense.installments ?? 1),
       notes: expense.notes ?? '',
       subcategoryId: expense.subcategoryId ? String(expense.subcategoryId) : '',
+      bankAccountId: expense.bankAccountId ? String(expense.bankAccountId) : '',
     });
     setOpen(true);
   }
@@ -187,6 +190,18 @@ export default function Expenses() {
                   <Label>Parcelas</Label>
                   <Input type="number" min="1" max="48" value={form.installments} onChange={e => setForm(f => ({ ...f, installments: e.target.value }))} />
                 </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Conta Bancária</Label>
+                <Select value={form.bankAccountId} onValueChange={v => setForm(f => ({ ...f, bankAccountId: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selecione a conta (opcional)" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Sem conta específica</SelectItem>
+                    {bankAccounts.map((acc: any) => (
+                      <SelectItem key={acc.id} value={String(acc.id)}>{acc.name}{acc.bank ? ` — ${acc.bank}` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-1.5">
                 <Label>Observações</Label>
