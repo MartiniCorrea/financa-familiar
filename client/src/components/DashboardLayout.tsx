@@ -11,8 +11,6 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -36,7 +34,6 @@ import {
   PiggyBank,
   Receipt,
   ShoppingCart,
-  Tag,
   Target,
   TrendingDown,
   TrendingUp,
@@ -206,11 +203,11 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
           {/* Navigation */}
           <SidebarContent className="gap-0 py-2">
             {menuGroups.map(group => (
-              <SidebarGroup key={group.label} className="px-2 py-1">
+              <div key={group.label} className="px-2 py-1">
                 {!isCollapsed && (
-                  <SidebarGroupLabel className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-2 mb-1">
+                  <div className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-2 mb-1 h-6 flex items-center">
                     {group.label}
-                  </SidebarGroupLabel>
+                  </div>
                 )}
                 <SidebarMenu>
                   {group.items.map(item => {
@@ -230,7 +227,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
                     );
                   })}
                 </SidebarMenu>
-              </SidebarGroup>
+              </div>
             ))}
           </SidebarContent>
 
