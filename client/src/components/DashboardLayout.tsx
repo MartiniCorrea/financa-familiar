@@ -20,7 +20,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   BarChart3,
@@ -43,7 +42,6 @@ import {
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
-import { Button } from "./ui/button";
 
 const menuGroups = [
   {
@@ -100,30 +98,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) return <DashboardLayoutSkeleton />;
 
   if (!user) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <DollarSign className="w-8 h-8 text-primary" />
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-center" style={{ fontFamily: "'Playfair Display', serif" }}>
-              FinançaFamiliar
-            </h1>
-            <p className="text-muted-foreground text-center text-sm leading-relaxed">
-              Gerencie as finanças da sua família com elegância e precisão. Controle receitas, despesas, metas e muito mais.
-            </p>
-          </div>
-          <Button
-            onClick={() => { window.location.href = getLoginUrl(); }}
-            size="lg"
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold shadow-lg"
-          >
-            Entrar na sua conta
-          </Button>
-        </div>
-      </div>
-    );
+    // Redirect to login page
+    if (typeof window !== 'undefined') {
+      window.location.replace('/login');
+    }
+    return null;
   }
 
   return (
@@ -136,7 +115,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 }
 
 function DashboardLayoutContent({ children, setSidebarWidth }: { children: React.ReactNode; setSidebarWidth: (w: number) => void }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+  const logout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    window.location.replace('/login');
+  };
   const [location, setLocation] = useLocation();
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";

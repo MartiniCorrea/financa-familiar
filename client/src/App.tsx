@@ -5,6 +5,7 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import DashboardLayout from "./components/DashboardLayout";
+import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Incomes from "./pages/Incomes";
 import Expenses from "./pages/Expenses";
@@ -21,8 +22,11 @@ import ExpenseGroups from "./pages/ExpenseGroups";
 
 function AppRoutes() {
   return (
-    <DashboardLayout>
-      <Switch>
+    <Switch>
+      <Route path="/login" component={Login} />
+      <Route>
+        <DashboardLayout>
+          <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/receitas" component={Incomes} />
         <Route path="/despesas" component={Expenses} />
@@ -36,10 +40,12 @@ function AppRoutes() {
         <Route path="/investimentos" component={Investments} />
         <Route path="/relatorios" component={Reports} />
         <Route path="/familia" component={FamilyMembers} />
-        <Route path="/404" component={NotFound} />
-        <Route component={NotFound} />
-      </Switch>
-    </DashboardLayout>
+          <Route path="/404" component={NotFound} />
+          <Route component={NotFound} />
+        </Switch>
+      </DashboardLayout>
+    </Route>
+  </Switch>
   );
 }
 

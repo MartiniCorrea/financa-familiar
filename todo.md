@@ -111,3 +111,16 @@
 
 ## Correções v4
 - [x] Bug crítico: labels de grupo do menu (PLANEJAMENTO, UTILIDADES) sobrepostas aos itens (Cartões em cima de PLANEJAMENTO, Investimentos em cima de UTILIDADES) — corrigido substituindo SidebarGroupLabel por div simples sem -mt-8
+
+## Melhorias v5 (deploy externo + PWA)
+- [x] Login próprio: coluna passwordHash na tabela users (bcrypt)
+- [x] Login próprio: endpoint POST /api/auth/register
+- [x] Login próprio: endpoint POST /api/auth/login
+- [x] Login próprio: endpoint POST /api/auth/logout
+- [x] Login próprio: página de login/cadastro no frontend (/login)
+- [x] Login próprio: DashboardLayout redireciona para /login se não autenticado
+- [x] PWA: manifest.json com nome, ícones, atalhos e cores
+- [x] PWA: Service Worker para cache offline (sw.js)
+- [x] PWA: meta tags no index.html (apple-mobile-web-app, theme-color)
+- [x] PWA: ícones 192x192 e 512x512 gerados
+- [x] Guia de deploy na Hostinger VPS (GUIA_DEPLOY_HOSTINGER.md)
