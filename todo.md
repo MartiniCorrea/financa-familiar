@@ -178,3 +178,31 @@
 
 ## Correções v14
 - [x] Bug: erro ao salvar despesa — payload explícito sem spread do form em Expenses, Incomes e Bills
+
+## Módulo v15 — Cartão de Crédito Completo
+
+### Banco de Dados
+- [x] Tabela credit_card_invoices (id, userId, creditCardId, month, year, closingDate, dueDate, totalAmount, status: aberta/fechada/paga, billId)
+- [x] Tabela credit_card_items (id, userId, invoiceId, creditCardId, description, amount, category/parentCategory, subcategoryId, purchaseDate, installments, currentInstallment, totalInstallments, notes, isRecurring)
+- [x] Coluna sourceType em expenses (normal | cartao_credito) e coluna creditCardItemId
+
+### Backend
+- [x] db.ts: funções CRUD para credit_card_invoices e credit_card_items
+- [x] db.ts: função getOrCreateInvoice (busca ou cria fatura aberta do mês)
+- [x] db.ts: função addItemToInvoice (adiciona item e recalcula total da fatura)
+- [x] db.ts: função payInvoice (marca fatura como paga, cria bill pago, lança despesas individuais)
+- [x] db.ts: função generateNextInstallments (cria itens das próximas parcelas nas faturas futuras)
+- [x] Router: creditCardInvoices (list, getOrCreate, getItems, addItem, removeItem, payInvoice)
+
+### Frontend — Página Cartões
+- [x] Seção "Fatura" com navegação por mês/ano
+- [x] Botão "Adicionar Gasto" com formulário (descrição, valor, categoria 50/30/20, data, parcelas)
+- [x] Exibição do total da fatura, data de vencimento e status
+- [x] Badge de status da fatura (Aberta / Fechada / Paga)
+- [x] Botão "Pagar Fatura" com diálogo de confirmação
+- [x] Ao pagar: fatura vira "Paga", bill é marcado como pago, despesas individuais são lançadas
+
+### Integração com Contas a Pagar
+- [x] Ao criar/atualizar fatura: gerar ou atualizar bill correspondente automaticamente
+- [x] Bill do cartão aparece em Contas a Pagar com nome do cartão e valor total
+- [x] Ao pagar fatura: bill é marcado como pago automaticamente

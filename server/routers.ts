@@ -384,6 +384,49 @@ const dashboardRouter = router({
     .query(({ ctx, input }) => db.getMonthlyEvolution(ctx.user.id, input?.months ?? 6)),
 });
 
+// ─── Credit Card Invoices Router ───────────────────────────────────────────────
+const creditCardInvoicesRouter = router({
+  list: protectedProcedure.input(z.object({ creditCardId: z.number().optional() }))
+    .query(({ ctx, input }) => db.getCreditCardInvoices(ctx.user.id, input.creditCardId)),
+  getOrCreate: protectedProcedure.input(z.object({
+    creditCardId: z.number(),
+    month: z.number().min(1).max(12),
+    year: z.number().min(2000).max(2100),
+  })).mutation(({ ctx, input }) => db.getOrCreateInvoice(ctx.user.id, input.creditCardId, input.month, input.year)),
+  getItems: protectedProcedure.input(z.object({ invoiceId: z.number() }))
+    .query(({ ctx, input }) => db.getCreditCardItems(input.invoiceId, ctx.user.id)),
+  addItem: protectedProcedure.input(z.object({
+    invoiceId: z.number(),
+    creditCardId: z.number(),
+    description: z.string().min(1).max(255),
+    amount: z.string(),
+    parentCategory: z.enum(["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros"]).default("outros"),
+    subcategoryId: z.number().optional(),
+    purchaseDate: z.string(),
+    installments: z.number().min(1).max(72).default(1),
+    notes: z.string().optional(),
+    isRecurring: z.boolean().default(false),
+  })).mutation(async ({ ctx, input }) => {
+    const { installments, ...rest } = input;
+    const baseItem = {
+      ...rest,
+      userId: ctx.user.id,
+      currentInstallment: 1,
+      totalInstallments: installments,
+      installments,
+    };
+    await db.addItemToInvoice(baseItem as any);
+    if (installments > 1) {
+      await db.generateNextInstallments(ctx.user.id, input.creditCardId, baseItem as any, installments);
+    }
+    return { success: true };
+  }),
+  removeItem: protectedProcedure.input(z.object({ itemId: z.number() }))
+    .mutation(({ ctx, input }) => db.removeItemFromInvoice(input.itemId, ctx.user.id)),
+  payInvoice: protectedProcedure.input(z.object({ invoiceId: z.number() }))
+    .mutation(({ ctx, input }) => db.payInvoice(input.invoiceId, ctx.user.id)),
+});
+
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -410,6 +453,7 @@ export const appRouter = router({
   expenseGroups: expenseGroupsRouter,
   balance: balanceRouter,
   bankAccounts: bankAccountsRouter,
+  creditCardInvoices: creditCardInvoicesRouter,
 });
 
 export type AppRouter = typeof appRouter;

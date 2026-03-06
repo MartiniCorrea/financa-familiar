@@ -143,6 +143,8 @@ export const expenses = mysqlTable("expenses", {
   installments: int("installments").default(1),
   currentInstallment: int("currentInstallment").default(1),
   notes: text("notes"),
+  sourceType: mysqlEnum("sourceType", ["normal", "cartao_credito"]).notNull().default("normal"),
+  creditCardItemId: int("creditCardItemId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -380,3 +382,48 @@ export const expenseSubcategories = mysqlTable("expense_subcategories", {
 
 export type ExpenseSubcategory = typeof expenseSubcategories.$inferSelect;
 export type InsertExpenseSubcategory = typeof expenseSubcategories.$inferInsert;
+
+// ─── Credit Card Invoices ─────────────────────────────────────────────────────
+export const creditCardInvoices = mysqlTable("credit_card_invoices", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  creditCardId: int("creditCardId").notNull(),
+  month: int("month").notNull(),
+  year: int("year").notNull(),
+  closingDate: date("closingDate"),
+  dueDate: date("dueDate"),
+  totalAmount: decimal("totalAmount", { precision: 15, scale: 2 }).notNull().default("0"),
+  status: mysqlEnum("status", ["aberta", "fechada", "paga"]).notNull().default("aberta"),
+  billId: int("billId"),
+  paidAt: timestamp("paidAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type CreditCardInvoice = typeof creditCardInvoices.$inferSelect;
+export type InsertCreditCardInvoice = typeof creditCardInvoices.$inferInsert;
+
+// ─── Credit Card Items ────────────────────────────────────────────────────────
+export const creditCardItems = mysqlTable("credit_card_items", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  invoiceId: int("invoiceId").notNull(),
+  creditCardId: int("creditCardId").notNull(),
+  description: varchar("description", { length: 255 }).notNull(),
+  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
+  parentCategory: mysqlEnum("parentCategory", [
+    "habitacao", "alimentacao", "saude", "educacao",
+    "transporte", "vestuario", "lazer", "financeiro",
+    "utilidades", "pessoal", "outros"
+  ]).notNull().default("outros"),
+  subcategoryId: int("subcategoryId"),
+  purchaseDate: date("purchaseDate").notNull(),
+  installments: int("installments").notNull().default(1),
+  currentInstallment: int("currentInstallment").notNull().default(1),
+  totalInstallments: int("totalInstallments").notNull().default(1),
+  notes: text("notes"),
+  isRecurring: boolean("isRecurring").notNull().default(false),
+  expenseId: int("expenseId"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type CreditCardItem = typeof creditCardItems.$inferSelect;
+export type InsertCreditCardItem = typeof creditCardItems.$inferInsert;

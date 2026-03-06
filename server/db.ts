@@ -1,14 +1,14 @@
 import { and, asc, desc, eq, gte, lte, sql, sum } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
-  BankAccount, Bill, Budget, CreditCard, Expense, ExpenseCategory, FamilyMember,
+  BankAccount, Bill, Budget, CreditCard, CreditCardInvoice, CreditCardItem, Expense, ExpenseCategory, FamilyMember,
   FinancialGoal, GoalContribution, Income, InsertBankAccount, InsertBill, InsertBudget,
-  InsertCreditCard, InsertExpense, InsertExpenseCategory, InsertFamilyMember,
+  InsertCreditCard, InsertCreditCardInvoice, InsertCreditCardItem, InsertExpense, InsertExpenseCategory, InsertFamilyMember,
   InsertFinancialGoal, InsertGoalContribution, InsertIncome, InsertInvestment,
   InsertInvestmentTransaction, InsertPriceHistory, InsertShoppingItem,
   InsertShoppingList, InsertSupermarket, InsertUser, Investment,
   InvestmentTransaction, PriceHistory, ShoppingItem, ShoppingList, Supermarket,
-  bankAccounts, bills, budgets, creditCards, expenseCategories, expenses, familyMembers,
+  bankAccounts, bills, budgets, creditCardInvoices, creditCardItems, creditCards, expenseCategories, expenses, familyMembers,
   financialGoals, goalContributions, incomes, investmentTransactions,
   investments, priceHistory, shoppingItems, shoppingLists, supermarkets, users,
 } from "../drizzle/schema";
@@ -804,4 +804,188 @@ export async function getBankAccountTransactions(accountId: number, userId: numb
   ].sort((a, b) => new Date(b.date as unknown as string).getTime() - new Date(a.date as unknown as string).getTime());
 
   return allTx;
+}
+
+// ─── Credit Card Invoices ─────────────────────────────────────────────────────
+
+export async function getCreditCardInvoices(userId: number, creditCardId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const conditions = [eq(creditCardInvoices.userId, userId)];
+  if (creditCardId) conditions.push(eq(creditCardInvoices.creditCardId, creditCardId));
+  return db.select().from(creditCardInvoices).where(and(...conditions)).orderBy(desc(creditCardInvoices.year), desc(creditCardInvoices.month));
+}
+
+export async function getOrCreateInvoice(userId: number, creditCardId: number, month: number, year: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Try to find existing invoice
+  const existing = await db.select().from(creditCardInvoices)
+    .where(and(
+      eq(creditCardInvoices.userId, userId),
+      eq(creditCardInvoices.creditCardId, creditCardId),
+      eq(creditCardInvoices.month, month),
+      eq(creditCardInvoices.year, year)
+    )).limit(1);
+  if (existing.length > 0) return existing[0];
+  // Get card info for closing/due dates
+  const card = await db.select().from(creditCards).where(and(eq(creditCards.id, creditCardId), eq(creditCards.userId, userId))).limit(1);
+  let closingDate: string | null = null;
+  let dueDate: string | null = null;
+  if (card.length > 0) {
+    const c = card[0];
+    if (c.closingDay) {
+      closingDate = `${year}-${String(month).padStart(2,'0')}-${String(c.closingDay).padStart(2,'0')}`;
+    }
+    if (c.dueDay) {
+      // Due date is typically next month
+      const dueMonth = month === 12 ? 1 : month + 1;
+      const dueYear = month === 12 ? year + 1 : year;
+      dueDate = `${dueYear}-${String(dueMonth).padStart(2,'0')}-${String(c.dueDay).padStart(2,'0')}`;
+    }
+  }
+  await db.insert(creditCardInvoices).values({
+    userId, creditCardId, month, year,
+    closingDate: closingDate as any,
+    dueDate: dueDate as any,
+    totalAmount: "0",
+    status: "aberta",
+  });
+  const created = await db.select().from(creditCardInvoices)
+    .where(and(
+      eq(creditCardInvoices.userId, userId),
+      eq(creditCardInvoices.creditCardId, creditCardId),
+      eq(creditCardInvoices.month, month),
+      eq(creditCardInvoices.year, year)
+    )).limit(1);
+  return created[0];
+}
+
+export async function updateInvoiceTotal(invoiceId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const result = await db.select({ total: sql<string>`SUM(${creditCardItems.amount})` })
+    .from(creditCardItems)
+    .where(eq(creditCardItems.invoiceId, invoiceId));
+  const total = result[0]?.total || "0";
+  await db.update(creditCardInvoices).set({ totalAmount: total }).where(eq(creditCardInvoices.id, invoiceId));
+}
+
+export async function addItemToInvoice(data: InsertCreditCardItem) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  await db.insert(creditCardItems).values(data);
+  await updateInvoiceTotal(data.invoiceId);
+  // Ensure bill exists for this invoice
+  await syncInvoiceBill(data.userId, data.invoiceId);
+}
+
+export async function removeItemFromInvoice(itemId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const item = await db.select().from(creditCardItems).where(and(eq(creditCardItems.id, itemId), eq(creditCardItems.userId, userId))).limit(1);
+  if (item.length === 0) return;
+  await db.delete(creditCardItems).where(eq(creditCardItems.id, itemId));
+  await updateInvoiceTotal(item[0].invoiceId);
+  await syncInvoiceBill(userId, item[0].invoiceId);
+}
+
+export async function getCreditCardItems(invoiceId: number, userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(creditCardItems)
+    .where(and(eq(creditCardItems.invoiceId, invoiceId), eq(creditCardItems.userId, userId)))
+    .orderBy(desc(creditCardItems.purchaseDate));
+}
+
+export async function syncInvoiceBill(userId: number, invoiceId: number) {
+  const db = await getDb();
+  if (!db) return;
+  const invoice = await db.select().from(creditCardInvoices).where(and(eq(creditCardInvoices.id, invoiceId), eq(creditCardInvoices.userId, userId))).limit(1);
+  if (invoice.length === 0) return;
+  const inv = invoice[0];
+  if (inv.status === 'paga') return;
+  const card = await db.select().from(creditCards).where(eq(creditCards.id, inv.creditCardId)).limit(1);
+  const cardName = card[0]?.name || 'Cartão de Crédito';
+  const total = parseFloat(inv.totalAmount as string);
+  if (total <= 0) return;
+  const description = `Fatura ${cardName} ${String(inv.month).padStart(2,'0')}/${inv.year}`;
+  if (inv.billId) {
+    // Update existing bill
+    await db.update(bills).set({ amount: inv.totalAmount as string, dueDate: inv.dueDate as any }).where(eq(bills.id, inv.billId));
+  } else {
+    // Create new bill
+    await db.insert(bills).values({
+      userId,
+      description,
+      amount: inv.totalAmount as string,
+      type: 'pagar',
+      category: 'financeiro' as any,
+      dueDate: (inv.dueDate || `${inv.year}-${String(inv.month).padStart(2,'0')}-10`) as any,
+      status: 'pendente',
+    });
+    const newBill = await db.select().from(bills)
+      .where(and(eq(bills.userId, userId), eq(bills.description, description)))
+      .orderBy(desc(bills.id)).limit(1);
+    if (newBill.length > 0) {
+      await db.update(creditCardInvoices).set({ billId: newBill[0].id }).where(eq(creditCardInvoices.id, invoiceId));
+    }
+  }
+}
+
+export async function payInvoice(invoiceId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const invoice = await db.select().from(creditCardInvoices).where(and(eq(creditCardInvoices.id, invoiceId), eq(creditCardInvoices.userId, userId))).limit(1);
+  if (invoice.length === 0) throw new Error("Fatura não encontrada");
+  const inv = invoice[0];
+  if (inv.status === 'paga') throw new Error("Fatura já foi paga");
+  // Get all items
+  const items = await db.select().from(creditCardItems).where(eq(creditCardItems.invoiceId, invoiceId));
+  const card = await db.select().from(creditCards).where(eq(creditCards.id, inv.creditCardId)).limit(1);
+  const cardName = card[0]?.name || 'Cartão';
+  const today = new Date().toISOString().split('T')[0];
+  // Create individual expenses for each item
+  for (const item of items) {
+    await db.insert(expenses).values({
+      userId,
+      description: item.description,
+      amount: item.amount as string,
+      parentCategory: item.parentCategory as any,
+      subcategoryId: item.subcategoryId,
+      date: item.purchaseDate as any,
+      notes: `[Cartão ${cardName}] ${item.notes || ''}`.trim(),
+      sourceType: 'cartao_credito' as any,
+      creditCardItemId: item.id,
+      installments: item.totalInstallments,
+      currentInstallment: item.currentInstallment,
+    });
+  }
+  // Mark invoice as paid
+  await db.update(creditCardInvoices).set({ status: 'paga', paidAt: new Date() }).where(eq(creditCardInvoices.id, invoiceId));
+  // Mark bill as paid
+  if (inv.billId) {
+    await db.update(bills).set({ status: 'pago', paidAt: today as any }).where(eq(bills.id, inv.billId));
+  }
+  return { itemsLaunched: items.length };
+}
+
+export async function generateNextInstallments(userId: number, creditCardId: number, baseItem: InsertCreditCardItem, totalInstallments: number) {
+  // For installment purchases, create items in future invoices
+  const db = await getDb();
+  if (!db) return;
+  const purchaseDate = new Date(baseItem.purchaseDate as unknown as string);
+  for (let i = 2; i <= totalInstallments; i++) {
+    const futureMonth = ((purchaseDate.getMonth() + i - 1) % 12) + 1;
+    const futureYear = purchaseDate.getFullYear() + Math.floor((purchaseDate.getMonth() + i - 1) / 12);
+    const futureInvoice = await getOrCreateInvoice(userId, creditCardId, futureMonth, futureYear);
+    await db.insert(creditCardItems).values({
+      ...baseItem,
+      invoiceId: futureInvoice.id,
+      currentInstallment: i,
+      purchaseDate: `${futureYear}-${String(futureMonth).padStart(2,'0')}-01` as any,
+    });
+    await updateInvoiceTotal(futureInvoice.id);
+    await syncInvoiceBill(userId, futureInvoice.id);
+  }
 }
