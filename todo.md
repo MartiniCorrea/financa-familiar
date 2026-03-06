@@ -219,3 +219,6 @@
 
 ## Correções v19
 - [ ] Bug: erro silencioso ao adicionar gasto na fatura — investigar router/db com logs detalhados
+
+## Correções v20
+- [x] Bug: isRecurring boolean convertido para 0/1 e notes tratado como null ao inserir item na fatura

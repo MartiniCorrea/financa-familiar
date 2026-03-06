@@ -415,10 +415,16 @@ const creditCardInvoicesRouter = router({
       totalInstallments: installments,
       installments,
     };
+    const itemData = {
+      ...baseItem,
+      isRecurring: input.isRecurring ? 1 : 0,
+      notes: input.notes || null,
+      subcategoryId: input.subcategoryId ?? null,
+    };
     try {
-      await db.addItemToInvoice(baseItem as any);
+      await db.addItemToInvoice(itemData as any);
       if (installments > 1) {
-        await db.generateNextInstallments(ctx.user.id, input.creditCardId, baseItem as any, installments);
+        await db.generateNextInstallments(ctx.user.id, input.creditCardId, itemData as any, installments);
       }
     } catch (err: any) {
       console.error('[addItemToInvoice] Error:', err?.message || err);
