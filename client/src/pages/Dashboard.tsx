@@ -77,7 +77,14 @@ export default function Dashboard() {
       .sort((a, b) => b.value - a.value);
   }, [groupSummary]);
 
-  const totalBalanceValue = totalBalance ?? 0;
+  // Quando há contas bancárias cadastradas, o saldo total é a soma dos saldos de cada conta
+  // Caso contrário, usa o cálculo legado (saldo inicial + receitas - despesas)
+  const totalBalanceValue = useMemo(() => {
+    if (bankAccountsWithBalance && bankAccountsWithBalance.length > 0) {
+      return bankAccountsWithBalance.reduce((sum: number, acc: any) => sum + (acc.balance ?? 0), 0);
+    }
+    return totalBalance ?? 0;
+  }, [bankAccountsWithBalance, totalBalance]);
 
   const kpis = [
     {

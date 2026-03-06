@@ -167,3 +167,8 @@
 
 ## Correções v11
 - [x] Bug: erro ao cadastrar conta bancária — coluna updatedAt removida do schema (não existe no banco do VPS)
+
+## Correções v12
+- [x] Bug: saldo total consolidado mostra R$ 0,00 em vez de somar o saldo de todas as contas
+- [x] Saldo por conta = saldo inicial + receitas vinculadas - despesas vinculadas
+- [x] Saldo total = soma do saldo de todas as contas ativas
