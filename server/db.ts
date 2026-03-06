@@ -200,6 +200,13 @@ export async function getCreditCards(userId: number) {
   return db.select().from(creditCards).where(and(eq(creditCards.userId, userId), eq(creditCards.isActive, true))).orderBy(asc(creditCards.name));
 }
 
+export async function getCreditCardById(userId: number, cardId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(creditCards).where(and(eq(creditCards.id, cardId), eq(creditCards.userId, userId))).limit(1);
+  return result[0] ?? null;
+}
+
 export async function createCreditCard(data: InsertCreditCard) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");

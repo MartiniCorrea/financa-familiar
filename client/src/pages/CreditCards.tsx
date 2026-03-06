@@ -105,12 +105,23 @@ export default function CreditCards() {
   });
 
   const addItemMutation = trpc.creditCardInvoices.addItem.useMutation({
-    onSuccess: () => {
+    onSuccess: (result) => {
       utils.creditCardInvoices.list.invalidate();
       utils.creditCardInvoices.getItems.invalidate();
       setItemOpen(false);
       setItemForm(emptyItemForm);
-      toast.success("Gasto adicionado à fatura!");
+      // Navegar para o mês/ano correto da fatura se for diferente do atual
+      if (result.invoiceMonth && result.invoiceYear) {
+        if (result.invoiceMonth !== month || result.invoiceYear !== year) {
+          setMonth(result.invoiceMonth);
+          setYear(result.invoiceYear);
+          toast.success(`Gasto adicionado à fatura de ${new Date(result.invoiceYear, result.invoiceMonth - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}!`);
+        } else {
+          toast.success("Gasto adicionado à fatura!");
+        }
+      } else {
+        toast.success("Gasto adicionado à fatura!");
+      }
     },
     onError: (e) => toast.error(e.message || "Erro ao adicionar gasto"),
   });

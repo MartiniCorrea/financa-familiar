@@ -408,9 +408,42 @@ const creditCardInvoicesRouter = router({
     isRecurring: z.boolean().default(false),
   })).mutation(async ({ ctx, input }) => {
     const installments = input.installments ?? 1;
+
+    // Calcular o mês/ano correto da fatura com base na data de compra e no dia de fechamento do cartão
+    // Regra: se dia da compra <= closingDay → fatura do mesmo mês; se dia > closingDay → fatura do próximo mês
+    const purchaseDateObj = new Date(input.purchaseDate + 'T12:00:00');
+    const purchaseDay = purchaseDateObj.getDate();
+    const purchaseMonth = purchaseDateObj.getMonth() + 1; // 1-12
+    const purchaseYear = purchaseDateObj.getFullYear();
+
+    // Buscar o cartão para obter o closingDay
+    const card = await db.getCreditCardById(ctx.user.id, input.creditCardId);
+    const closingDay = card?.closingDay ?? 1;
+
+    // Determinar mês/ano da fatura
+    let invoiceMonth: number;
+    let invoiceYear: number;
+    if (purchaseDay <= closingDay) {
+      // Compra antes ou no dia do fechamento → fatura do mesmo mês
+      invoiceMonth = purchaseMonth;
+      invoiceYear = purchaseYear;
+    } else {
+      // Compra após o fechamento → fatura do próximo mês
+      if (purchaseMonth === 12) {
+        invoiceMonth = 1;
+        invoiceYear = purchaseYear + 1;
+      } else {
+        invoiceMonth = purchaseMonth + 1;
+        invoiceYear = purchaseYear;
+      }
+    }
+
+    // Buscar ou criar a fatura correta
+    const correctInvoice = await db.getOrCreateInvoice(ctx.user.id, input.creditCardId, invoiceMonth, invoiceYear);
+
     const itemData = {
       userId: ctx.user.id,
-      invoiceId: input.invoiceId,
+      invoiceId: correctInvoice.id,
       creditCardId: input.creditCardId,
       description: input.description,
       amount: input.amount,
@@ -432,7 +465,7 @@ const creditCardInvoicesRouter = router({
       console.error('[addItemToInvoice] Error:', err?.message || err);
       throw new Error(err?.message || 'Erro interno ao adicionar gasto');
     }
-    return { success: true };
+    return { success: true, invoiceMonth, invoiceYear };
   }),
   removeItem: protectedProcedure.input(z.object({ itemId: z.number() }))
     .mutation(({ ctx, input }) => db.removeItemFromInvoice(input.itemId, ctx.user.id)),

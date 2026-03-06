@@ -229,3 +229,7 @@
 - [x] Bug: labels do formulário de gasto da fatura estão sobrepostos
 - [x] Bug: "Invalid Date" na data de vencimento e data do item — corrigido com função formatDbDate
 - [x] Bug: isRecurring boolean — schema Drizzle corrigido para tinyint (MySqlTinyInt)
+
+## Correções v22
+- [x] Bug: gasto após data de fechamento deve cair na fatura do mês seguinte (ex: compra dia 18/02 com fechamento dia 28/02 → fatura de março, não abril)
+- [x] Melhoria: frontend navega automaticamente para o mês correto da fatura após adicionar gasto
