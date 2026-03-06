@@ -29,8 +29,8 @@ const EXPENSE_CATEGORIES = [
 type CardForm = { name: string; bank: string; lastFourDigits: string; creditLimit: string; closingDay: string; dueDay: string; color: string; };
 const emptyCardForm: CardForm = { name: '', bank: '', lastFourDigits: '', creditLimit: '', closingDay: '1', dueDay: '10', color: '#6366f1' };
 
-type ItemForm = { description: string; amount: string; parentCategory: string; purchaseDate: string; installments: string; notes: string; };
-const emptyItemForm: ItemForm = { description: '', amount: '', parentCategory: 'outros', purchaseDate: getTodayString(), installments: '1', notes: '' };
+type ItemForm = { description: string; amount: string; subcategoryId: string; purchaseDate: string; installments: string; notes: string; };
+const emptyItemForm: ItemForm = { description: '', amount: '', subcategoryId: '', purchaseDate: getTodayString(), installments: '1', notes: '' };
 
 function statusBadge(status: string) {
   if (status === 'paga') return <Badge className="bg-emerald-400/20 text-emerald-400 border-0">Paga</Badge>;
@@ -50,6 +50,8 @@ export default function CreditCards() {
 
   const utils = trpc.useUtils();
   const { data: cards = [], isLoading } = trpc.creditCards.list.useQuery();
+  const { data: expenseGroups = [] } = trpc.expenseGroups.list.useQuery();
+  const { data: allSubcats = [] } = trpc.expenseGroups.subcategories.list.useQuery({});
 
   const selectedCard = useMemo(() => cards.find(c => c.id === selectedCardId), [cards, selectedCardId]);
 
@@ -125,12 +127,21 @@ export default function CreditCards() {
       getOrCreateInvoiceMutation.mutate({ creditCardId: selectedCardId, month, year });
       return;
     }
+    const subcatId = itemForm.subcategoryId ? parseInt(itemForm.subcategoryId) : undefined;
+    const subcat = subcatId ? allSubcats.find(s => s.id === subcatId) : undefined;
+    const group = subcat ? expenseGroups.find(g => g.id === subcat.groupId) : undefined;
+    // Map group name to parentCategory enum
+    const groupToEnum: Record<string, string> = {
+      'necessidades': 'habitacao', 'desejos': 'lazer', 'investimentos': 'financeiro',
+    };
+    const parentCategory = group ? (groupToEnum[group.name.toLowerCase()] || 'outros') : 'outros';
     addItemMutation.mutate({
       invoiceId: targetInvoiceId,
       creditCardId: selectedCardId,
       description: itemForm.description,
       amount: itemForm.amount,
-      parentCategory: itemForm.parentCategory as any,
+      parentCategory: parentCategory as any,
+      subcategoryId: subcatId,
       purchaseDate: itemForm.purchaseDate,
       installments: parseInt(itemForm.installments) || 1,
       notes: itemForm.notes || undefined,
@@ -388,20 +399,43 @@ export default function CreditCards() {
                 <Input type="date" value={itemForm.purchaseDate} onChange={e => setItemForm(f => ({ ...f, purchaseDate: e.target.value }))} required />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Categoria (50/30/20)</Label>
-                <Select value={itemForm.parentCategory} onValueChange={v => setItemForm(f => ({ ...f, parentCategory: v }))}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {EXPENSE_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Parcelas</Label>
-                <Input type="number" min="1" max="72" value={itemForm.installments} onChange={e => setItemForm(f => ({ ...f, installments: e.target.value }))} />
-              </div>
+            <div>
+              <Label>
+                Categoria 50/30/20
+                <span className="text-xs text-muted-foreground font-normal ml-1">(opcional)</span>
+              </Label>
+              <Select
+                value={itemForm.subcategoryId || "none"}
+                onValueChange={v => setItemForm(f => ({ ...f, subcategoryId: v === "none" ? "" : v }))}
+              >
+                <SelectTrigger><SelectValue placeholder="Selecione uma subcategoria..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem subcategoria</SelectItem>
+                  {expenseGroups.map(group => {
+                    const groupSubcats = allSubcats.filter(s => s.groupId === group.id);
+                    if (groupSubcats.length === 0) return null;
+                    return (
+                      <div key={group.id}>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          {group.name}
+                        </div>
+                        {groupSubcats.map(sub => (
+                          <SelectItem key={sub.id} value={String(sub.id)}>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sub.color || "#6366f1" }} />
+                              {sub.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Parcelas</Label>
+              <Input type="number" min="1" max="72" value={itemForm.installments} onChange={e => setItemForm(f => ({ ...f, installments: e.target.value }))} />
             </div>
             <div>
               <Label>Observações</Label>

@@ -209,3 +209,6 @@
 
 ## Correções v16
 - [x] Bug: erro ao abrir fatura — coluna updatedAt removida da tabela credit_card_invoices (não existe no banco do VPS)
+
+## Melhorias v17
+- [x] Cartões: formulário de gasto da fatura agora usa subcategorias 50/30/20 cadastradas pelo usuário
