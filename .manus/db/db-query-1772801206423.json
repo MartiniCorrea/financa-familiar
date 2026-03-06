@@ -1,0 +1,18 @@
+{
+  "query": "SHOW COLUMNS FROM credit_card_items WHERE Field = 'isRecurring';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2kFLXQuFv4V4Y4E.cb116c6777a1 --database S72dXysLKGdD9WHAuQpZuU --execute SHOW COLUMNS FROM credit_card_items WHERE Field = 'isRecurring';",
+  "rows": [
+    {
+      "Field": "isRecurring",
+      "Type": "tinyint",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nisRecurring\ttinyint\tNO\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 73
+}

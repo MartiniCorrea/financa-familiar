@@ -222,3 +222,10 @@
 
 ## Correções v20
 - [x] Bug: isRecurring boolean convertido para 0/1 e notes tratado como null ao inserir item na fatura
+
+## Correções v21
+- [x] Bug: notes="" (string vazia) causa erro no MySQL — deve ser null
+- [x] Bug: botão Pagar Fatura não aparece na tela
+- [x] Bug: labels do formulário de gasto da fatura estão sobrepostos
+- [x] Bug: "Invalid Date" na data de vencimento e data do item — corrigido com função formatDbDate
+- [x] Bug: isRecurring boolean — schema Drizzle corrigido para tinyint (MySqlTinyInt)

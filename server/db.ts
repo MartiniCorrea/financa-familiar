@@ -954,7 +954,7 @@ export async function payInvoice(invoiceId: number, userId: number) {
       parentCategory: item.parentCategory as any,
       subcategoryId: item.subcategoryId,
       date: item.purchaseDate as any,
-      notes: `[Cartão ${cardName}] ${item.notes || ''}`.trim(),
+      notes: item.notes ? `[Cartão ${cardName}] ${item.notes}` : `[Cartão ${cardName}]`,
       sourceType: 'cartao_credito' as any,
       creditCardItemId: item.id,
       installments: item.totalInstallments,
@@ -979,12 +979,22 @@ export async function generateNextInstallments(userId: number, creditCardId: num
     const futureMonth = ((purchaseDate.getMonth() + i - 1) % 12) + 1;
     const futureYear = purchaseDate.getFullYear() + Math.floor((purchaseDate.getMonth() + i - 1) / 12);
     const futureInvoice = await getOrCreateInvoice(userId, creditCardId, futureMonth, futureYear);
-    await db.insert(creditCardItems).values({
-      ...baseItem,
+    const futureItem = {
+      userId: baseItem.userId,
       invoiceId: futureInvoice.id,
-      currentInstallment: i,
+      creditCardId: baseItem.creditCardId,
+      description: baseItem.description,
+      amount: baseItem.amount,
+      parentCategory: baseItem.parentCategory,
+      subcategoryId: baseItem.subcategoryId !== undefined ? baseItem.subcategoryId : null,
       purchaseDate: `${futureYear}-${String(futureMonth).padStart(2,'0')}-01` as any,
-    });
+      installments: baseItem.installments,
+      currentInstallment: i,
+      totalInstallments: baseItem.totalInstallments,
+      notes: (baseItem.notes && String(baseItem.notes).trim() !== '') ? String(baseItem.notes).trim() : null,
+      isRecurring: baseItem.isRecurring ? 1 : 0,
+    };
+    await db.insert(creditCardItems).values(futureItem as any);
     await updateInvoiceTotal(futureInvoice.id);
     await syncInvoiceBill(userId, futureInvoice.id);
   }

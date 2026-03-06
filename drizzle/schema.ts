@@ -8,6 +8,7 @@ import {
   decimal,
   boolean,
   date,
+  tinyint,
 } from "drizzle-orm/mysql-core";
 
 // ─── Core User Table ──────────────────────────────────────────────────────────
@@ -420,7 +421,7 @@ export const creditCardItems = mysqlTable("credit_card_items", {
   currentInstallment: int("currentInstallment").notNull().default(1),
   totalInstallments: int("totalInstallments").notNull().default(1),
   notes: text("notes"),
-  isRecurring: boolean("isRecurring").notNull().default(false),
+  isRecurring: tinyint("isRecurring").notNull().default(0),
   expenseId: int("expenseId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

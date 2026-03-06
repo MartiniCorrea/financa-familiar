@@ -13,6 +13,21 @@ import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
 const CARD_COLORS = ['#6366f1', '#f59e0b', '#22c55e', '#ef4444', '#06b6d4', '#ec4899', '#8b5cf6', '#d97706'];
+
+// Formata datas do banco (podem vir como Date, string ISO ou string YYYY-MM-DD)
+function formatDbDate(dateVal: any): string {
+  if (!dateVal) return '';
+  if (dateVal instanceof Date) {
+    return dateVal.toLocaleDateString('pt-BR');
+  }
+  const s = String(dateVal);
+  // Se for YYYY-MM-DD, adiciona T12:00:00 para evitar problema de timezone
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    return new Date(s + 'T12:00:00').toLocaleDateString('pt-BR');
+  }
+  const d = new Date(s);
+  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('pt-BR');
+}
 const MONTHS = Array.from({ length: 12 }, (_, i) => {
   const d = new Date(2024, i, 1);
   return { value: i + 1, label: d.toLocaleDateString('pt-BR', { month: 'long' }) };
@@ -292,13 +307,13 @@ export default function CreditCards() {
                   </p>
                   {currentInvoice?.dueDate && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      Vencimento: {new Date(String(currentInvoice.dueDate) + 'T12:00:00').toLocaleDateString('pt-BR')}
+                      Vencimento: {formatDbDate(currentInvoice.dueDate)}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   {currentInvoice && statusBadge(currentInvoice.status)}
-                  {currentInvoice && currentInvoice.status !== 'paga' && parseFloat(String(currentInvoice.totalAmount)) > 0 && (
+                  {currentInvoice && currentInvoice.status !== 'paga' && items.length > 0 && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700">
@@ -355,7 +370,7 @@ export default function CreditCards() {
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                          {new Date(String(item.purchaseDate) + 'T12:00:00').toLocaleDateString('pt-BR')}
+                          {formatDbDate(item.purchaseDate)}
                           {item.notes && ` · ${item.notes}`}
                         </p>
                       </div>
@@ -382,33 +397,30 @@ export default function CreditCards() {
 
       {/* Add Item Dialog */}
       <Dialog open={itemOpen} onOpenChange={setItemOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Adicionar Gasto na Fatura</DialogTitle></DialogHeader>
-          <form onSubmit={handleAddItem} className="space-y-4">
-            <div>
-              <Label>Descrição *</Label>
-              <Input value={itemForm.description} onChange={e => setItemForm(f => ({ ...f, description: e.target.value }))} placeholder="Ex: Supermercado" required />
+          <form onSubmit={handleAddItem} className="space-y-3 mt-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="item-desc">Descrição *</Label>
+              <Input id="item-desc" value={itemForm.description} onChange={e => setItemForm(f => ({ ...f, description: e.target.value }))} placeholder="Ex: Supermercado" required />
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Valor (R$) *</Label>
-                <Input type="number" step="0.01" value={itemForm.amount} onChange={e => setItemForm(f => ({ ...f, amount: e.target.value }))} required />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="item-amount">Valor (R$) *</Label>
+                <Input id="item-amount" type="number" step="0.01" min="0.01" value={itemForm.amount} onChange={e => setItemForm(f => ({ ...f, amount: e.target.value }))} required />
               </div>
-              <div>
-                <Label>Data da Compra *</Label>
-                <Input type="date" value={itemForm.purchaseDate} onChange={e => setItemForm(f => ({ ...f, purchaseDate: e.target.value }))} required />
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="item-date">Data da Compra *</Label>
+                <Input id="item-date" type="date" value={itemForm.purchaseDate} onChange={e => setItemForm(f => ({ ...f, purchaseDate: e.target.value }))} required />
               </div>
             </div>
-            <div>
-              <Label>
-                Categoria 50/30/20
-                <span className="text-xs text-muted-foreground font-normal ml-1">(opcional)</span>
-              </Label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="item-subcat">Categoria 50/30/20 <span className="text-xs text-muted-foreground font-normal">(opcional)</span></Label>
               <Select
                 value={itemForm.subcategoryId || "none"}
                 onValueChange={v => setItemForm(f => ({ ...f, subcategoryId: v === "none" ? "" : v }))}
               >
-                <SelectTrigger><SelectValue placeholder="Selecione uma subcategoria..." /></SelectTrigger>
+                <SelectTrigger id="item-subcat"><SelectValue placeholder="Selecione uma subcategoria..." /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Sem subcategoria</SelectItem>
                   {expenseGroups.map(group => {
@@ -433,20 +445,20 @@ export default function CreditCards() {
                 </SelectContent>
               </Select>
             </div>
-            <div>
-              <Label>Parcelas</Label>
-              <Input type="number" min="1" max="72" value={itemForm.installments} onChange={e => setItemForm(f => ({ ...f, installments: e.target.value }))} />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="item-installments">Parcelas</Label>
+              <Input id="item-installments" type="number" min="1" max="72" value={itemForm.installments} onChange={e => setItemForm(f => ({ ...f, installments: e.target.value }))} />
             </div>
-            <div>
-              <Label>Observações</Label>
-              <Input value={itemForm.notes} onChange={e => setItemForm(f => ({ ...f, notes: e.target.value }))} placeholder="Opcional" />
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="item-notes">Observações <span className="text-xs text-muted-foreground font-normal">(opcional)</span></Label>
+              <Input id="item-notes" value={itemForm.notes} onChange={e => setItemForm(f => ({ ...f, notes: e.target.value }))} placeholder="Ex: Compra parcelada" />
             </div>
             {parseInt(itemForm.installments) > 1 && (
               <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm text-blue-400">
                 As parcelas 2 a {itemForm.installments} serão lançadas automaticamente nas faturas dos próximos meses.
               </div>
             )}
-            <div className="flex gap-2">
+            <div className="flex gap-2 pt-1">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setItemOpen(false)}>Cancelar</Button>
               <Button type="submit" className="flex-1" disabled={addItemMutation.isPending}>
                 {addItemMutation.isPending ? "Salvando..." : "Adicionar"}

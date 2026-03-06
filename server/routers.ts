@@ -407,19 +407,21 @@ const creditCardInvoicesRouter = router({
     notes: z.string().optional(),
     isRecurring: z.boolean().default(false),
   })).mutation(async ({ ctx, input }) => {
-    const { installments, ...rest } = input;
-    const baseItem = {
-      ...rest,
+    const installments = input.installments ?? 1;
+    const itemData = {
       userId: ctx.user.id,
+      invoiceId: input.invoiceId,
+      creditCardId: input.creditCardId,
+      description: input.description,
+      amount: input.amount,
+      parentCategory: input.parentCategory,
+      subcategoryId: input.subcategoryId !== undefined ? input.subcategoryId : null,
+      purchaseDate: input.purchaseDate,
+      installments: installments,
       currentInstallment: 1,
       totalInstallments: installments,
-      installments,
-    };
-    const itemData = {
-      ...baseItem,
+      notes: (input.notes && input.notes.trim() !== '') ? input.notes.trim() : null,
       isRecurring: input.isRecurring ? 1 : 0,
-      notes: input.notes || null,
-      subcategoryId: input.subcategoryId ?? null,
     };
     try {
       await db.addItemToInvoice(itemData as any);

@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO credit_card_items (userId, invoiceId, creditCardId, description, amount, parentCategory, subcategoryId, purchaseDate, installments, currentInstallment, totalInstallments, notes, isRecurring) VALUES (1, 1, 1, 'Teste de inserção', '50.00', 'outros', NULL, '2026-03-06', 1, 1, 1, NULL, 0); DELETE FROM credit_card_items WHERE description = 'Teste de inserção' AND userId = 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2kFLXQuFv4V4Y4E.cb116c6777a1 --database S72dXysLKGdD9WHAuQpZuU --execute INSERT INTO credit_card_items (userId, invoiceId, creditCardId, description, amount, parentCategory, subcategoryId, purchaseDate, installments, currentInstallment, totalInstallments, notes, isRecurring) VALUES (1, 1, 1, 'Teste de inserção', '50.00', 'outros', NULL, '2026-03-06', 1, 1, 1, NULL, 0); DELETE FROM credit_card_items WHERE description = 'Teste de inserção' AND userId = 1;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 76
+}
