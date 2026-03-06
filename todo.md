@@ -233,3 +233,6 @@
 ## Correções v22
 - [x] Bug: gasto após data de fechamento deve cair na fatura do mês seguinte (ex: compra dia 18/02 com fechamento dia 28/02 → fatura de março, não abril)
 - [x] Melhoria: frontend navega automaticamente para o mês correto da fatura após adicionar gasto
+
+## Correções v23
+- [x] Bug: data inválida 2026-02-30 ao criar fatura — closingDay maior que dias do mês (ex: dia 30 em fevereiro) — corrigido com clampDay()

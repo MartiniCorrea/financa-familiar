@@ -839,16 +839,23 @@ export async function getOrCreateInvoice(userId: number, creditCardId: number, m
   const card = await db.select().from(creditCards).where(and(eq(creditCards.id, creditCardId), eq(creditCards.userId, userId))).limit(1);
   let closingDate: string | null = null;
   let dueDate: string | null = null;
+  // Helper: retorna o último dia válido do mês (ex: dia 30 em fevereiro vira 28 ou 29)
+  function clampDay(d: number, m: number, y: number): number {
+    const lastDay = new Date(y, m, 0).getDate(); // dia 0 do próximo mês = último dia do mês atual
+    return Math.min(d, lastDay);
+  }
   if (card.length > 0) {
     const c = card[0];
     if (c.closingDay) {
-      closingDate = `${year}-${String(month).padStart(2,'0')}-${String(c.closingDay).padStart(2,'0')}`;
+      const day = clampDay(c.closingDay, month, year);
+      closingDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     }
     if (c.dueDay) {
       // Due date is typically next month
       const dueMonth = month === 12 ? 1 : month + 1;
       const dueYear = month === 12 ? year + 1 : year;
-      dueDate = `${dueYear}-${String(dueMonth).padStart(2,'0')}-${String(c.dueDay).padStart(2,'0')}`;
+      const day = clampDay(c.dueDay, dueMonth, dueYear);
+      dueDate = `${dueYear}-${String(dueMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     }
   }
   await db.insert(creditCardInvoices).values({
