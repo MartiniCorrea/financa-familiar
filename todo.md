@@ -212,3 +212,10 @@
 
 ## Melhorias v17
 - [x] Cartões: formulário de gasto da fatura agora usa subcategorias 50/30/20 cadastradas pelo usuário
+
+## Correções v18
+- [x] Bug: erro ao adicionar gasto na fatura — tabelas credit_card_items/invoices não existem no VPS
+- [x] Bug: botão Pagar Fatura não aparece — aparece após adicionar gastos (total > 0 e status != paga)
+
+## Correções v19
+- [ ] Bug: erro silencioso ao adicionar gasto na fatura — investigar router/db com logs detalhados

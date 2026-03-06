@@ -415,9 +415,14 @@ const creditCardInvoicesRouter = router({
       totalInstallments: installments,
       installments,
     };
-    await db.addItemToInvoice(baseItem as any);
-    if (installments > 1) {
-      await db.generateNextInstallments(ctx.user.id, input.creditCardId, baseItem as any, installments);
+    try {
+      await db.addItemToInvoice(baseItem as any);
+      if (installments > 1) {
+        await db.generateNextInstallments(ctx.user.id, input.creditCardId, baseItem as any, installments);
+      }
+    } catch (err: any) {
+      console.error('[addItemToInvoice] Error:', err?.message || err);
+      throw new Error(err?.message || 'Erro interno ao adicionar gasto');
     }
     return { success: true };
   }),

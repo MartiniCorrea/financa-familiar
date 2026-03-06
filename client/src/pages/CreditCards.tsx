@@ -72,7 +72,7 @@ export default function CreditCards() {
 
   const createCardMutation = trpc.creditCards.create.useMutation({
     onSuccess: () => { utils.creditCards.list.invalidate(); setCardOpen(false); setCardForm(emptyCardForm); toast.success("Cartão adicionado!"); },
-    onError: () => toast.error("Erro ao salvar cartão"),
+    onError: (e) => toast.error(e.message || "Erro ao salvar cartão"),
   });
 
   const deleteCardMutation = trpc.creditCards.delete.useMutation({
@@ -86,7 +86,7 @@ export default function CreditCards() {
       utils.creditCardInvoices.list.invalidate();
       setItemOpen(true);
     },
-    onError: () => toast.error("Erro ao abrir fatura"),
+    onError: (e) => toast.error(e.message || "Erro ao abrir fatura"),
   });
 
   const addItemMutation = trpc.creditCardInvoices.addItem.useMutation({
@@ -97,7 +97,7 @@ export default function CreditCards() {
       setItemForm(emptyItemForm);
       toast.success("Gasto adicionado à fatura!");
     },
-    onError: () => toast.error("Erro ao adicionar gasto"),
+    onError: (e) => toast.error(e.message || "Erro ao adicionar gasto"),
   });
 
   const removeItemMutation = trpc.creditCardInvoices.removeItem.useMutation({
@@ -106,7 +106,7 @@ export default function CreditCards() {
       utils.creditCardInvoices.getItems.invalidate();
       toast.success("Item removido!");
     },
-    onError: () => toast.error("Erro ao remover item"),
+    onError: (e) => toast.error(e.message || "Erro ao remover item"),
   });
 
   const payInvoiceMutation = trpc.creditCardInvoices.payInvoice.useMutation({
