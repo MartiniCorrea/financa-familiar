@@ -947,7 +947,7 @@ export async function syncInvoiceBill(userId: number, invoiceId: number) {
   }
 }
 
-export async function payInvoice(invoiceId: number, userId: number) {
+export async function payInvoice(invoiceId: number, userId: number, bankAccountId?: number | null) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   const invoice = await db.select().from(creditCardInvoices).where(and(eq(creditCardInvoices.id, invoiceId), eq(creditCardInvoices.userId, userId))).limit(1);
@@ -973,13 +973,18 @@ export async function payInvoice(invoiceId: number, userId: number) {
       creditCardItemId: item.id,
       installments: item.totalInstallments,
       currentInstallment: item.currentInstallment,
+      bankAccountId: bankAccountId || null,
     });
   }
   // Mark invoice as paid
   await db.update(creditCardInvoices).set({ status: 'paga', paidAt: new Date() }).where(eq(creditCardInvoices.id, invoiceId));
-  // Mark bill as paid
+  // Mark bill as paid and link bank account
   if (inv.billId) {
-    await db.update(bills).set({ status: 'pago', paidAt: today as any }).where(eq(bills.id, inv.billId));
+    await db.update(bills).set({
+      status: 'pago',
+      paidAt: today as any,
+      ...(bankAccountId ? { bankAccountId } : {}),
+    }).where(eq(bills.id, inv.billId));
   }
   return { itemsLaunched: items.length };
 }

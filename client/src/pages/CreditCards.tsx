@@ -135,15 +135,31 @@ export default function CreditCards() {
     onError: (e) => toast.error(e.message || "Erro ao remover item"),
   });
 
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [payBankAccountId, setPayBankAccountId] = useState<string>('');
+
+  const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
+
   const payInvoiceMutation = trpc.creditCardInvoices.payInvoice.useMutation({
     onSuccess: (result) => {
       utils.creditCardInvoices.list.invalidate();
       utils.creditCardInvoices.getItems.invalidate();
       utils.bills.list.invalidate();
+      utils.bankAccounts.listWithBalance.invalidate();
+      setPayDialogOpen(false);
+      setPayBankAccountId('');
       toast.success(`Fatura paga! ${result.itemsLaunched} despesas lançadas automaticamente.`);
     },
     onError: (e) => toast.error(e.message || "Erro ao pagar fatura"),
   });
+
+  function handlePayInvoice() {
+    if (!currentInvoice) return;
+    payInvoiceMutation.mutate({
+      invoiceId: currentInvoice.id,
+      bankAccountId: payBankAccountId ? parseInt(payBankAccountId) : null,
+    });
+  }
 
   function handleAddItem(e: React.FormEvent) {
     e.preventDefault();
@@ -325,30 +341,56 @@ export default function CreditCards() {
                 <div className="flex items-center gap-3 flex-wrap">
                   {currentInvoice && statusBadge(currentInvoice.status)}
                   {currentInvoice && currentInvoice.status !== 'paga' && items.length > 0 && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-                          <CheckCircle2 className="w-4 h-4" /> Pagar Fatura
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirmar pagamento da fatura?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Ao pagar, cada gasto da fatura será lançado individualmente em <strong>Despesas</strong> com a observação de que foi no cartão {selectedCard.name}. A fatura será marcada como paga e a conta a pagar será quitada automaticamente.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => payInvoiceMutation.mutate({ invoiceId: currentInvoice.id })}
-                            className="bg-emerald-600 hover:bg-emerald-700"
-                          >
-                            Confirmar Pagamento
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <>
+                      <Button
+                        className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+                        onClick={() => { setPayBankAccountId(''); setPayDialogOpen(true); }}
+                      >
+                        <CheckCircle2 className="w-4 h-4" /> Pagar Fatura
+                      </Button>
+                      <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader>
+                            <DialogTitle>Pagar Fatura</DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4 py-2">
+                            <p className="text-sm text-muted-foreground">
+                              Total da fatura: <strong className="text-foreground">{formatCurrency(parseFloat(currentInvoice.totalAmount as string))}</strong>
+                            </p>
+                            <div className="space-y-1.5">
+                              <Label htmlFor="pay-account">Conta para débito</Label>
+                              <Select value={payBankAccountId} onValueChange={setPayBankAccountId}>
+                                <SelectTrigger id="pay-account">
+                                  <SelectValue placeholder="Selecione a conta (opcional)" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="none">Sem conta específica</SelectItem>
+                                  {bankAccounts.map(acc => (
+                                    <SelectItem key={acc.id} value={String(acc.id)}>
+                                      {acc.name}{acc.bank ? ` — ${acc.bank}` : ''}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">O valor será abatido do saldo da conta selecionada.</p>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              Cada gasto será lançado em <strong>Despesas</strong> vinculado ao cartão {selectedCard.name}. A fatura será marcada como paga.
+                            </p>
+                          </div>
+                          <div className="flex justify-end gap-2 pt-2">
+                            <Button variant="outline" onClick={() => setPayDialogOpen(false)}>Cancelar</Button>
+                            <Button
+                              className="bg-emerald-600 hover:bg-emerald-700"
+                              onClick={handlePayInvoice}
+                              disabled={payInvoiceMutation.isPending}
+                            >
+                              {payInvoiceMutation.isPending ? 'Processando...' : 'Confirmar Pagamento'}
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </>
                   )}
                   {(!currentInvoice || currentInvoice.status !== 'paga') && (
                     <Button onClick={openAddItem} className="gap-2" disabled={getOrCreateInvoiceMutation.isPending}>

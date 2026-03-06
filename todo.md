@@ -236,3 +236,6 @@
 
 ## Correções v23
 - [x] Bug: data inválida 2026-02-30 ao criar fatura — closingDay maior que dias do mês (ex: dia 30 em fevereiro) — corrigido com clampDay()
+
+## Melhorias v24
+- [x] Ao pagar fatura: perguntar qual conta bancária será usada e abater o valor nessa conta

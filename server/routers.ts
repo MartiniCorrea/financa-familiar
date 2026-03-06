@@ -469,8 +469,10 @@ const creditCardInvoicesRouter = router({
   }),
   removeItem: protectedProcedure.input(z.object({ itemId: z.number() }))
     .mutation(({ ctx, input }) => db.removeItemFromInvoice(input.itemId, ctx.user.id)),
-  payInvoice: protectedProcedure.input(z.object({ invoiceId: z.number() }))
-    .mutation(({ ctx, input }) => db.payInvoice(input.invoiceId, ctx.user.id)),
+  payInvoice: protectedProcedure.input(z.object({
+    invoiceId: z.number(),
+    bankAccountId: z.number().optional().nullable(),
+  })).mutation(({ ctx, input }) => db.payInvoice(input.invoiceId, ctx.user.id, input.bankAccountId)),
 });
 
 // ─── App Router ───────────────────────────────────────────────────────────────
