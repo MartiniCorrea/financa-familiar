@@ -46,7 +46,17 @@ export default function Bills() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.description || !form.amount || !form.dueDate) return toast.error("Preencha os campos obrigatórios");
-    createMutation.mutate({ ...form, amount: form.amount, category: 'outros' as any, subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined, bankAccountId: form.bankAccountId ? parseInt(form.bankAccountId) : undefined });
+    const payload = {
+      description: form.description,
+      amount: form.amount,
+      type: form.type,
+      dueDate: form.dueDate,
+      notes: form.notes || undefined,
+      category: 'outros' as any,
+      subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined,
+      bankAccountId: form.bankAccountId ? parseInt(form.bankAccountId) : undefined,
+    };
+    createMutation.mutate(payload);
   }
 
   function getStatusBadge(bill: any) {

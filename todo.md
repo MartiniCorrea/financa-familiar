@@ -175,3 +175,6 @@
 
 ## Correções v13
 - [x] Revisão completa: todos os SelectItem com value="" substituídos por valor não-vazio (Incomes, Expenses, Bills)
+
+## Correções v14
+- [x] Bug: erro ao salvar despesa — payload explícito sem spread do form em Expenses, Incomes e Bills

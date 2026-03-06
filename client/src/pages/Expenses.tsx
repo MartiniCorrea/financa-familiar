@@ -72,16 +72,19 @@ export default function Expenses() {
   function handleSubmit(evt: React.FormEvent) {
     evt.preventDefault();
     if (!form.description || !form.amount || !form.date) return toast.error("Preencha os campos obrigatórios");
-    const data = {
-      ...form,
+    const payload = {
+      description: form.description,
+      amount: form.amount,
+      date: form.date,
+      notes: form.notes || undefined,
       parentCategory: 'outros' as any,
       paymentMethod: form.paymentMethod as any,
       installments: parseInt(form.installments) || 1,
       subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined,
       bankAccountId: form.bankAccountId ? parseInt(form.bankAccountId) : undefined,
     };
-    if (editId) updateMutation.mutate({ id: editId, ...data, bankAccountId: data.bankAccountId ?? null });
-    else createMutation.mutate(data);
+    if (editId) updateMutation.mutate({ id: editId, ...payload, bankAccountId: payload.bankAccountId ?? null });
+    else createMutation.mutate(payload);
   }
 
   function openEdit(expense: any) {

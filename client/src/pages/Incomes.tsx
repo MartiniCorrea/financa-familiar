@@ -67,10 +67,18 @@ export default function Incomes() {
     e.preventDefault();
     if (!form.description || !form.amount || !form.date) return toast.error("Preencha os campos obrigatórios");
     const bankAccountId = form.bankAccountId ? parseInt(form.bankAccountId) : undefined;
+    const payload = {
+      description: form.description,
+      amount: form.amount,
+      category: form.category as any,
+      date: form.date,
+      notes: form.notes || undefined,
+      bankAccountId,
+    };
     if (editId) {
-      updateMutation.mutate({ id: editId, ...form, amount: form.amount, category: form.category as any, bankAccountId: bankAccountId ?? null });
+      updateMutation.mutate({ id: editId, ...payload, bankAccountId: bankAccountId ?? null });
     } else {
-      createMutation.mutate({ ...form, amount: form.amount, category: form.category as any, bankAccountId });
+      createMutation.mutate(payload);
     }
   }
 
