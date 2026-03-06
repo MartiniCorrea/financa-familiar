@@ -172,3 +172,6 @@
 - [x] Bug: saldo total consolidado mostra R$ 0,00 em vez de somar o saldo de todas as contas
 - [x] Saldo por conta = saldo inicial + receitas vinculadas - despesas vinculadas
 - [x] Saldo total = soma do saldo de todas as contas ativas
+
+## Correções v13
+- [x] Revisão completa: todos os SelectItem com value="" substituídos por valor não-vazio (Incomes, Expenses, Bills)

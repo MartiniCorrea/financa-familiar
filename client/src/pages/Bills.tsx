@@ -131,10 +131,10 @@ export default function Bills() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-foreground">Conta Bancária</Label>
-                <Select value={form.bankAccountId} onValueChange={v => setForm(f => ({ ...f, bankAccountId: v }))}>
+                <Select value={form.bankAccountId} onValueChange={v => setForm(f => ({ ...f, bankAccountId: v === 'none' ? '' : v }))}>
                   <SelectTrigger className="bg-input border-border text-foreground"><SelectValue placeholder="Selecione a conta (opcional)" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sem conta específica</SelectItem>
+                    <SelectItem value="none">Sem conta específica</SelectItem>
                     {bankAccounts.map((acc: any) => (
                       <SelectItem key={acc.id} value={String(acc.id)}>{acc.name}{acc.bank ? ` — ${acc.bank}` : ''}</SelectItem>
                     ))}
