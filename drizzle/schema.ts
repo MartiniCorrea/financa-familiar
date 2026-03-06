@@ -397,7 +397,6 @@ export const creditCardInvoices = mysqlTable("credit_card_invoices", {
   billId: int("billId"),
   paidAt: timestamp("paidAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 export type CreditCardInvoice = typeof creditCardInvoices.$inferSelect;
 export type InsertCreditCardInvoice = typeof creditCardInvoices.$inferInsert;

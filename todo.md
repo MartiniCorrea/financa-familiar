@@ -206,3 +206,6 @@
 - [x] Ao criar/atualizar fatura: gerar ou atualizar bill correspondente automaticamente
 - [x] Bill do cartão aparece em Contas a Pagar com nome do cartão e valor total
 - [x] Ao pagar fatura: bill é marcado como pago automaticamente
+
+## Correções v16
+- [x] Bug: erro ao abrir fatura — coluna updatedAt removida da tabela credit_card_invoices (não existe no banco do VPS)
