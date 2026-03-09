@@ -904,6 +904,35 @@ export async function removeItemFromInvoice(itemId: number, userId: number) {
   await syncInvoiceBill(userId, item[0].invoiceId);
 }
 
+export async function updateItemInInvoice(
+  itemId: number,
+  userId: number,
+  data: {
+    description: string;
+    amount: string;
+    parentCategory: string;
+    subcategoryId?: number | null;
+    purchaseDate: string;
+    notes?: string | null;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const item = await db.select().from(creditCardItems)
+    .where(and(eq(creditCardItems.id, itemId), eq(creditCardItems.userId, userId))).limit(1);
+  if (item.length === 0) throw new Error("Item não encontrado");
+  await db.update(creditCardItems).set({
+    description: data.description,
+    amount: data.amount,
+    parentCategory: data.parentCategory as any,
+    subcategoryId: data.subcategoryId !== undefined ? data.subcategoryId : null,
+    purchaseDate: data.purchaseDate as any,
+    notes: (data.notes && String(data.notes).trim() !== '') ? String(data.notes).trim() : null,
+  }).where(eq(creditCardItems.id, itemId));
+  await updateInvoiceTotal(item[0].invoiceId);
+  await syncInvoiceBill(userId, item[0].invoiceId);
+}
+
 export async function getCreditCardItems(invoiceId: number, userId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -989,14 +1018,22 @@ export async function payInvoice(invoiceId: number, userId: number, bankAccountI
   return { itemsLaunched: items.length };
 }
 
-export async function generateNextInstallments(userId: number, creditCardId: number, baseItem: InsertCreditCardItem, totalInstallments: number) {
-  // For installment purchases, create items in future invoices
+export async function generateNextInstallments(
+  userId: number,
+  creditCardId: number,
+  baseItem: InsertCreditCardItem,
+  totalInstallments: number,
+  firstInvoiceMonth: number,
+  firstInvoiceYear: number
+) {
+  // Gera as parcelas 2..N a partir do mês/ano da primeira fatura (já calculado pelo router)
   const db = await getDb();
   if (!db) return;
-  const purchaseDate = new Date(baseItem.purchaseDate as unknown as string);
   for (let i = 2; i <= totalInstallments; i++) {
-    const futureMonth = ((purchaseDate.getMonth() + i - 1) % 12) + 1;
-    const futureYear = purchaseDate.getFullYear() + Math.floor((purchaseDate.getMonth() + i - 1) / 12);
+    // Cada parcela avança 1 mês a partir da primeira fatura
+    let futureMonth = firstInvoiceMonth + (i - 1);
+    let futureYear = firstInvoiceYear;
+    while (futureMonth > 12) { futureMonth -= 12; futureYear++; }
     const futureInvoice = await getOrCreateInvoice(userId, creditCardId, futureMonth, futureYear);
     const futureItem = {
       userId: baseItem.userId,
@@ -1006,7 +1043,7 @@ export async function generateNextInstallments(userId: number, creditCardId: num
       amount: baseItem.amount,
       parentCategory: baseItem.parentCategory,
       subcategoryId: baseItem.subcategoryId !== undefined ? baseItem.subcategoryId : null,
-      purchaseDate: `${futureYear}-${String(futureMonth).padStart(2,'0')}-01` as any,
+      purchaseDate: baseItem.purchaseDate, // mantém a data original da compra
       installments: baseItem.installments,
       currentInstallment: i,
       totalInstallments: baseItem.totalInstallments,

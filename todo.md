@@ -239,3 +239,7 @@
 
 ## Melhorias v24
 - [x] Ao pagar fatura: perguntar qual conta bancária será usada e abater o valor nessa conta
+
+## Correções v25
+- [x] Bug: lógica de fatura corrigida — fatura nomeada pelo mês de pagamento (compra em fev → fatura de março)
+- [x] Melhoria: edição de itens da fatura adicionada (botão de lápis ao lado do excluir)

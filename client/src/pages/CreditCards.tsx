@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, CreditCard, Receipt, ChevronLeft, ChevronRight, CheckCircle2, PlusCircle, X } from "lucide-react";
+import { Plus, Trash2, Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight, CheckCircle2, PlusCircle, X } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -62,6 +62,9 @@ export default function CreditCards() {
   const [itemOpen, setItemOpen] = useState(false);
   const [itemForm, setItemForm] = useState<ItemForm>(emptyItemForm);
   const [invoiceId, setInvoiceId] = useState<number | null>(null);
+  const [editItemOpen, setEditItemOpen] = useState(false);
+  const [editItemId, setEditItemId] = useState<number | null>(null);
+  const [editItemForm, setEditItemForm] = useState<ItemForm>(emptyItemForm);
 
   const utils = trpc.useUtils();
   const { data: cards = [], isLoading } = trpc.creditCards.list.useQuery();
@@ -139,6 +142,47 @@ export default function CreditCards() {
   const [payBankAccountId, setPayBankAccountId] = useState<string>('');
 
   const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
+
+  const updateItemMutation = trpc.creditCardInvoices.updateItem.useMutation({
+    onSuccess: () => {
+      utils.creditCardInvoices.getItems.invalidate();
+      utils.creditCardInvoices.list.invalidate();
+      setEditItemOpen(false);
+      toast.success('Gasto atualizado!');
+    },
+    onError: (e) => toast.error(e.message || 'Erro ao atualizar gasto'),
+  });
+
+  function openEditItem(item: any) {
+    setEditItemId(item.id);
+    setEditItemForm({
+      description: item.description,
+      amount: String(item.amount),
+      subcategoryId: item.subcategoryId ? String(item.subcategoryId) : '',
+      purchaseDate: typeof item.purchaseDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.purchaseDate)
+        ? item.purchaseDate
+        : item.purchaseDate instanceof Date
+          ? item.purchaseDate.toISOString().split('T')[0]
+          : String(item.purchaseDate).split('T')[0],
+      installments: String(item.totalInstallments || 1),
+      notes: item.notes || '',
+    });
+    setEditItemOpen(true);
+  }
+
+  function handleEditItem(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editItemId || !editItemForm.description || !editItemForm.amount) return toast.error('Preencha os campos obrigatórios');
+    updateItemMutation.mutate({
+      itemId: editItemId,
+      description: editItemForm.description,
+      amount: editItemForm.amount,
+      parentCategory: 'outros',
+      subcategoryId: editItemForm.subcategoryId ? parseInt(editItemForm.subcategoryId) : null,
+      purchaseDate: editItemForm.purchaseDate,
+      notes: editItemForm.notes || null,
+    });
+  }
 
   const payInvoiceMutation = trpc.creditCardInvoices.payInvoice.useMutation({
     onSuccess: (result) => {
@@ -430,9 +474,14 @@ export default function CreditCards() {
                       <div className="flex items-center gap-3 ml-3 shrink-0">
                         <p className="font-semibold text-red-400">{formatCurrency(parseFloat(String(item.amount)))}</p>
                         {currentInvoice?.status !== 'paga' && (
-                          <button onClick={() => removeItemMutation.mutate({ itemId: item.id })} className="text-muted-foreground hover:text-red-400 transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => openEditItem(item)} className="text-muted-foreground hover:text-blue-400 transition-colors p-1" title="Editar">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => removeItemMutation.mutate({ itemId: item.id })} className="text-muted-foreground hover:text-red-400 transition-colors p-1" title="Excluir">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -447,6 +496,65 @@ export default function CreditCards() {
           </Card>
         </div>
       )}
+
+      {/* Edit Item Dialog */}
+      <Dialog open={editItemOpen} onOpenChange={setEditItemOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>Editar Gasto</DialogTitle></DialogHeader>
+          <form onSubmit={handleEditItem} className="space-y-3 mt-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-item-desc">Descrição *</Label>
+              <Input id="edit-item-desc" value={editItemForm.description} onChange={e => setEditItemForm(f => ({ ...f, description: e.target.value }))} placeholder="Ex: Supermercado" required />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="edit-item-amount">Valor (R$) *</Label>
+                <Input id="edit-item-amount" type="number" step="0.01" min="0.01" value={editItemForm.amount} onChange={e => setEditItemForm(f => ({ ...f, amount: e.target.value }))} required />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="edit-item-date">Data da Compra *</Label>
+                <Input id="edit-item-date" type="date" value={editItemForm.purchaseDate} onChange={e => setEditItemForm(f => ({ ...f, purchaseDate: e.target.value }))} required />
+              </div>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-item-subcat">Categoria 50/30/20 <span className="text-xs text-muted-foreground font-normal">(opcional)</span></Label>
+              <Select value={editItemForm.subcategoryId || 'none'} onValueChange={v => setEditItemForm(f => ({ ...f, subcategoryId: v === 'none' ? '' : v }))}>
+                <SelectTrigger id="edit-item-subcat"><SelectValue placeholder="Selecione uma subcategoria..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem subcategoria</SelectItem>
+                  {expenseGroups.map(group => {
+                    const groupSubcats = allSubcats.filter(s => s.groupId === group.id);
+                    if (groupSubcats.length === 0) return null;
+                    return (
+                      <div key={group.id}>
+                        <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{group.name}</div>
+                        {groupSubcats.map(sub => (
+                          <SelectItem key={sub.id} value={String(sub.id)}>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sub.color || '#6366f1' }} />
+                              {sub.name}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="edit-item-notes">Observações <span className="text-xs text-muted-foreground font-normal">(opcional)</span></Label>
+              <Input id="edit-item-notes" value={editItemForm.notes} onChange={e => setEditItemForm(f => ({ ...f, notes: e.target.value }))} placeholder="Ex: Compra parcelada" />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setEditItemOpen(false)}>Cancelar</Button>
+              <Button type="submit" className="flex-1" disabled={updateItemMutation.isPending}>
+                {updateItemMutation.isPending ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Item Dialog */}
       <Dialog open={itemOpen} onOpenChange={setItemOpen}>

@@ -410,7 +410,9 @@ const creditCardInvoicesRouter = router({
     const installments = input.installments ?? 1;
 
     // Calcular o mês/ano correto da fatura com base na data de compra e no dia de fechamento do cartão
-    // Regra: se dia da compra <= closingDay → fatura do mesmo mês; se dia > closingDay → fatura do próximo mês
+    // Regra (padrão Nubank/mercado): a fatura tem o nome do mês de PAGAMENTO (vencimento), não do mês da compra.
+    // - Compra em fevereiro (antes ou no fechamento) → fatura de MARÇO (paga em março)
+    // - Compra em fevereiro (após o fechamento) → fatura de ABRIL (paga em abril)
     const purchaseDateObj = new Date(input.purchaseDate + 'T12:00:00');
     const purchaseDay = purchaseDateObj.getDate();
     const purchaseMonth = purchaseDateObj.getMonth() + 1; // 1-12
@@ -420,22 +422,27 @@ const creditCardInvoicesRouter = router({
     const card = await db.getCreditCardById(ctx.user.id, input.creditCardId);
     const closingDay = card?.closingDay ?? 1;
 
-    // Determinar mês/ano da fatura
+    // Função auxiliar para avançar N meses
+    function addMonths(month: number, year: number, n: number): { month: number; year: number } {
+      let m = month + n;
+      let y = year;
+      while (m > 12) { m -= 12; y++; }
+      return { month: m, year: y };
+    }
+
+    // Determinar mês/ano da fatura (mês de pagamento = mês da compra + 1 ou + 2)
     let invoiceMonth: number;
     let invoiceYear: number;
     if (purchaseDay <= closingDay) {
-      // Compra antes ou no dia do fechamento → fatura do mesmo mês
-      invoiceMonth = purchaseMonth;
-      invoiceYear = purchaseYear;
+      // Compra antes ou no dia do fechamento → fatura do próximo mês (paga no mês seguinte)
+      const next = addMonths(purchaseMonth, purchaseYear, 1);
+      invoiceMonth = next.month;
+      invoiceYear = next.year;
     } else {
-      // Compra após o fechamento → fatura do próximo mês
-      if (purchaseMonth === 12) {
-        invoiceMonth = 1;
-        invoiceYear = purchaseYear + 1;
-      } else {
-        invoiceMonth = purchaseMonth + 1;
-        invoiceYear = purchaseYear;
-      }
+      // Compra após o fechamento → fatura de dois meses à frente
+      const next = addMonths(purchaseMonth, purchaseYear, 2);
+      invoiceMonth = next.month;
+      invoiceYear = next.year;
     }
 
     // Buscar ou criar a fatura correta
@@ -459,7 +466,7 @@ const creditCardInvoicesRouter = router({
     try {
       await db.addItemToInvoice(itemData as any);
       if (installments > 1) {
-        await db.generateNextInstallments(ctx.user.id, input.creditCardId, itemData as any, installments);
+        await db.generateNextInstallments(ctx.user.id, input.creditCardId, itemData as any, installments, invoiceMonth, invoiceYear);
       }
     } catch (err: any) {
       console.error('[addItemToInvoice] Error:', err?.message || err);
@@ -469,6 +476,15 @@ const creditCardInvoicesRouter = router({
   }),
   removeItem: protectedProcedure.input(z.object({ itemId: z.number() }))
     .mutation(({ ctx, input }) => db.removeItemFromInvoice(input.itemId, ctx.user.id)),
+  updateItem: protectedProcedure.input(z.object({
+    itemId: z.number(),
+    description: z.string().min(1).max(255),
+    amount: z.string(),
+    parentCategory: z.enum(["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros"]).default("outros"),
+    subcategoryId: z.number().optional().nullable(),
+    purchaseDate: z.string(),
+    notes: z.string().optional().nullable(),
+  })).mutation(({ ctx, input }) => db.updateItemInInvoice(input.itemId, ctx.user.id, input)),
   payInvoice: protectedProcedure.input(z.object({
     invoiceId: z.number(),
     bankAccountId: z.number().optional().nullable(),
