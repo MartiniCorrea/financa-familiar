@@ -846,16 +846,19 @@ export async function getOrCreateInvoice(userId: number, creditCardId: number, m
   }
   if (card.length > 0) {
     const c = card[0];
+    // O mês da fatura é o mês do PAGAMENTO.
+    // closingDate (fechamento) é no mês ANTERIOR à fatura.
+    // dueDate (vencimento) é no próprio mês da fatura.
     if (c.closingDay) {
-      const day = clampDay(c.closingDay, month, year);
-      closingDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      const closingMonth = month === 1 ? 12 : month - 1;
+      const closingYear = month === 1 ? year - 1 : year;
+      const day = clampDay(c.closingDay, closingMonth, closingYear);
+      closingDate = `${closingYear}-${String(closingMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     }
     if (c.dueDay) {
-      // Due date is typically next month
-      const dueMonth = month === 12 ? 1 : month + 1;
-      const dueYear = month === 12 ? year + 1 : year;
-      const day = clampDay(c.dueDay, dueMonth, dueYear);
-      dueDate = `${dueYear}-${String(dueMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      // Vencimento no próprio mês da fatura
+      const day = clampDay(c.dueDay, month, year);
+      dueDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     }
   }
   await db.insert(creditCardInvoices).values({

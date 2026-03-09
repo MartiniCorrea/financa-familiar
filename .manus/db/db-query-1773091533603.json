@@ -1,0 +1,9 @@
+{
+  "query": "SELECT id, userId, creditCardId, month, year, closingDate, dueDate, status FROM credit_card_invoices ORDER BY year, month;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2kFLXQuFv4V4Y4E.cb116c6777a1 --database S72dXysLKGdD9WHAuQpZuU --execute SELECT id, userId, creditCardId, month, year, closingDate, dueDate, status FROM credit_card_invoices ORDER BY year, month;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1005
+}

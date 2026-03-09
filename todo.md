@@ -243,3 +243,6 @@
 ## Correções v25
 - [x] Bug: lógica de fatura corrigida — fatura nomeada pelo mês de pagamento (compra em fev → fatura de março)
 - [x] Melhoria: edição de itens da fatura adicionada (botão de lápis ao lado do excluir)
+
+## Correções v26
+- [x] Bug: dueDate da fatura corrigido — vencimento agora no próprio mês da fatura, fechamento no mês anterior
