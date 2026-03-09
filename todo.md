@@ -246,3 +246,6 @@
 
 ## Correções v26
 - [x] Bug: dueDate da fatura corrigido — vencimento agora no próprio mês da fatura, fechamento no mês anterior
+
+## Melhorias v27
+- [x] Ao pagar fatura: lançar cada item da fatura como despesa individual na data de pagamento, com nota "[Cartão NomeDoCartão]"

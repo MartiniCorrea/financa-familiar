@@ -1,0 +1,178 @@
+{
+  "query": "DESCRIBE expenses;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2kFLXQuFv4V4Y4E.cb116c6777a1 --database S72dXysLKGdD9WHAuQpZuU --execute DESCRIBE expenses;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "userId",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "familyMemberId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "bankAccountId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "creditCardId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "categoryId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "description",
+      "Type": "varchar(255)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "amount",
+      "Type": "decimal(15,2)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "parentCategory",
+      "Type": "enum('habitacao','alimentacao','saude','educacao','transporte','vestuario','lazer','financeiro','utilidades','pessoal','outros')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "outros",
+      "Extra": ""
+    },
+    {
+      "Field": "date",
+      "Type": "date",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "paymentMethod",
+      "Type": "enum('dinheiro','debito','credito','pix','transferencia','boleto','outros')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "outros",
+      "Extra": ""
+    },
+    {
+      "Field": "isRecurring",
+      "Type": "tinyint(1)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "recurringDay",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "installments",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "1",
+      "Extra": ""
+    },
+    {
+      "Field": "currentInstallment",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "1",
+      "Extra": ""
+    },
+    {
+      "Field": "notes",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "createdAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updatedAt",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "subcategoryId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "sourceType",
+      "Type": "enum('normal','cartao_credito')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "normal",
+      "Extra": ""
+    },
+    {
+      "Field": "creditCardItemId",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nuserId\tint\tNO\t\tNULL\t\nfamilyMemberId\tint\tYES\t\tNULL\t\nbankAccountId\tint\tYES\t\tNULL\t\ncreditCardId\tint\tYES\t\tNULL\t\ncategoryId\tint\tYES\t\tNULL\t\ndescription\tvarchar(255)\tNO\t\tNULL\t\namount\tdecimal(15,2)\tNO\t\tNULL\t\nparentCategory\tenum('habitacao','alimentacao','saude','educacao','transporte','vestuario','lazer','financeiro','utilidades','pessoal','outros')\tNO\t\toutros\t\ndate\tdate\tNO\t\tNULL\t\npaymentMethod\tenum('dinheiro','debito','credito','pix','transferencia','boleto','outros')\tYES\t\toutros\t\nisRecurring\ttinyint(1)\tYES\t\t0\t\nrecurringDay\tint\tYES\t\tNULL\t\ninstallments\tint\tYES\t\t1\t\ncurrentInstallment\tint\tYES\t\t1\t\nnotes\ttext\tYES\t\tNULL\t\ncreatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdatedAt\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nsubcategoryId\tint\tYES\t\tNULL\t\nsourceType\tenum('normal','cartao_credito')\tNO\t\tnormal\t\ncreditCardItemId\tint\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 1463
+}

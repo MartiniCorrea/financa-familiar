@@ -999,7 +999,7 @@ export async function payInvoice(invoiceId: number, userId: number, bankAccountI
       amount: item.amount as string,
       parentCategory: item.parentCategory as any,
       subcategoryId: item.subcategoryId,
-      date: item.purchaseDate as any,
+      date: today as any, // data de pagamento da fatura, não da compra
       notes: item.notes ? `[Cartão ${cardName}] ${item.notes}` : `[Cartão ${cardName}]`,
       sourceType: 'cartao_credito' as any,
       creditCardItemId: item.id,
