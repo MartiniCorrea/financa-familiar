@@ -249,3 +249,6 @@
 
 ## Melhorias v27
 - [x] Ao pagar fatura: lançar cada item da fatura como despesa individual na data de pagamento, com nota "[Cartão NomeDoCartão]"
+
+## Melhorias v28
+- [x] Estorno de pagamento de fatura: botão "Estornar Pagamento" reabri fatura, remove despesas lançadas automaticamente e restaura saldo da conta

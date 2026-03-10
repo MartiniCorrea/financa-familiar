@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight, CheckCircle2, PlusCircle, X } from "lucide-react";
+import { Plus, Trash2, Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight, CheckCircle2, PlusCircle, X, RotateCcw } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
 
@@ -183,6 +183,18 @@ export default function CreditCards() {
       notes: editItemForm.notes || null,
     });
   }
+
+  const reversePaymentMutation = trpc.creditCardInvoices.reversePayment.useMutation({
+    onSuccess: () => {
+      utils.creditCardInvoices.list.invalidate();
+      utils.creditCardInvoices.getItems.invalidate();
+      utils.bills.list.invalidate();
+      utils.bankAccounts.listWithBalance.invalidate();
+      utils.expenses.list.invalidate();
+      toast.success('Pagamento estornado! A fatura foi reaberta.');
+    },
+    onError: (e) => toast.error(e.message || 'Erro ao estornar pagamento'),
+  });
 
   const payInvoiceMutation = trpc.creditCardInvoices.payInvoice.useMutation({
     onSuccess: (result) => {
@@ -384,6 +396,21 @@ export default function CreditCards() {
                 </div>
                 <div className="flex items-center gap-3 flex-wrap">
                   {currentInvoice && statusBadge(currentInvoice.status)}
+                  {currentInvoice && currentInvoice.status === 'paga' && (
+                    <Button
+                      variant="outline"
+                      className="gap-2 border-amber-500 text-amber-500 hover:bg-amber-500/10"
+                      onClick={() => {
+                        if (confirm('Deseja estornar o pagamento desta fatura? As despesas lançadas automaticamente serão removidas e a fatura será reaberta.')) {
+                          reversePaymentMutation.mutate({ invoiceId: currentInvoice.id });
+                        }
+                      }}
+                      disabled={reversePaymentMutation.isPending}
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      {reversePaymentMutation.isPending ? 'Estornando...' : 'Estornar Pagamento'}
+                    </Button>
+                  )}
                   {currentInvoice && currentInvoice.status !== 'paga' && items.length > 0 && (
                     <>
                       <Button

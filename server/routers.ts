@@ -489,6 +489,9 @@ const creditCardInvoicesRouter = router({
     invoiceId: z.number(),
     bankAccountId: z.number().optional().nullable(),
   })).mutation(({ ctx, input }) => db.payInvoice(input.invoiceId, ctx.user.id, input.bankAccountId)),
+  reversePayment: protectedProcedure.input(z.object({
+    invoiceId: z.number(),
+  })).mutation(({ ctx, input }) => db.reverseInvoicePayment(input.invoiceId, ctx.user.id)),
 });
 
 // ─── App Router ───────────────────────────────────────────────────────────────

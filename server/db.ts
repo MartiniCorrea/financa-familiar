@@ -1021,6 +1021,48 @@ export async function payInvoice(invoiceId: number, userId: number, bankAccountI
   return { itemsLaunched: items.length };
 }
 
+export async function reverseInvoicePayment(invoiceId: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const invoice = await db.select().from(creditCardInvoices)
+    .where(and(eq(creditCardInvoices.id, invoiceId), eq(creditCardInvoices.userId, userId))).limit(1);
+  if (invoice.length === 0) throw new Error("Fatura não encontrada");
+  const inv = invoice[0];
+  if (inv.status !== 'paga') throw new Error("Fatura não está paga");
+
+  // 1. Buscar as despesas lançadas automaticamente para esta fatura
+  const items = await db.select().from(creditCardItems).where(eq(creditCardItems.invoiceId, invoiceId));
+  const itemIds = items.map(i => i.id);
+
+  // 2. Remover as despesas de cartão vinculadas a esses itens
+  if (itemIds.length > 0) {
+    for (const itemId of itemIds) {
+      // Buscar a despesa vinculada a este item
+      const linkedExpenses = await db.select().from(expenses)
+        .where(and(
+          eq(expenses.userId, userId),
+          eq(expenses.creditCardItemId, itemId),
+          eq(expenses.sourceType, 'cartao_credito' as any)
+        ));
+      for (const exp of linkedExpenses) {
+        // O saldo da conta é calculado dinamicamente (receitas - despesas + initialBalance),
+        // então basta remover a despesa para o saldo ser restituído automaticamente.
+        await db.delete(expenses).where(eq(expenses.id, exp.id));
+      }
+    }
+  }
+
+  // 3. Reabrir a fatura
+  await db.update(creditCardInvoices).set({ status: 'aberta', paidAt: null }).where(eq(creditCardInvoices.id, invoiceId));
+
+  // 4. Reabrir a conta a pagar vinculada
+  if (inv.billId) {
+    await db.update(bills).set({ status: 'pendente', paidAt: null }).where(eq(bills.id, inv.billId));
+  }
+
+  return { reversed: true };
+}
+
 export async function generateNextInstallments(
   userId: number,
   creditCardId: number,
