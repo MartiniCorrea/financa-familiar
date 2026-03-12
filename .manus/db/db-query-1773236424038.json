@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS account_transfers (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  userId INT NOT NULL,\n  fromAccountId INT NOT NULL,\n  toAccountId INT NOT NULL,\n  amount DECIMAL(15,2) NOT NULL,\n  date DATE NOT NULL,\n  description VARCHAR(255),\n  notes TEXT,\n  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2kFLXQuFv4V4Y4E.cb116c6777a1 --database S72dXysLKGdD9WHAuQpZuU --execute CREATE TABLE IF NOT EXISTS account_transfers (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  userId INT NOT NULL,\n  fromAccountId INT NOT NULL,\n  toAccountId INT NOT NULL,\n  amount DECIMAL(15,2) NOT NULL,\n  date DATE NOT NULL,\n  description VARCHAR(255),\n  notes TEXT,\n  createdAt TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 806
+}

@@ -8,6 +8,8 @@ import {
   InsertInvestmentTransaction, InsertPriceHistory, InsertShoppingItem,
   InsertShoppingList, InsertSupermarket, InsertUser, Investment,
   InvestmentTransaction, PriceHistory, ShoppingItem, ShoppingList, Supermarket,
+  AccountTransfer, InsertAccountTransfer,
+  accountTransfers,
   bankAccounts, bills, budgets, creditCardInvoices, creditCardItems, creditCards, expenseCategories, expenses, familyMembers,
   financialGoals, goalContributions, incomes, investmentTransactions,
   investments, priceHistory, shoppingItems, shoppingLists, supermarkets, users,
@@ -1099,4 +1101,31 @@ export async function generateNextInstallments(
     await updateInvoiceTotal(futureInvoice.id);
     await syncInvoiceBill(userId, futureInvoice.id);
   }
+}
+
+// ─── Account Transfers ────────────────────────────────────────────────────────
+export async function listAccountTransfers(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(accountTransfers)
+    .where(eq(accountTransfers.userId, userId))
+    .orderBy(desc(accountTransfers.date));
+}
+
+export async function createAccountTransfer(userId: number, data: Omit<InsertAccountTransfer, 'userId'>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  // Validate accounts belong to user
+  const from = await db.select().from(bankAccounts).where(and(eq(bankAccounts.id, data.fromAccountId), eq(bankAccounts.userId, userId))).limit(1);
+  const to = await db.select().from(bankAccounts).where(and(eq(bankAccounts.id, data.toAccountId), eq(bankAccounts.userId, userId))).limit(1);
+  if (from.length === 0 || to.length === 0) throw new Error("Conta não encontrada");
+  if (data.fromAccountId === data.toAccountId) throw new Error("Contas de origem e destino devem ser diferentes");
+  const result = await db.insert(accountTransfers).values({ ...data, userId });
+  return { id: (result as any).insertId };
+}
+
+export async function deleteAccountTransfer(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.delete(accountTransfers).where(and(eq(accountTransfers.id, id), eq(accountTransfers.userId, userId)));
 }

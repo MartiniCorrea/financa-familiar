@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Plus, Pencil, Trash2, Wallet, Building2, PiggyBank, Briefcase, TrendingUp,
-  TrendingDown, ArrowUpRight, ArrowDownRight, ChevronRight, X, RefreshCw
+  TrendingDown, ArrowUpRight, ArrowDownRight, ChevronRight, X, RefreshCw, ArrowLeftRight
 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
@@ -43,12 +43,16 @@ const emptyForm = {
 
 type FormState = typeof emptyForm;
 
+const emptyTransferForm = { fromAccountId: '', toAccountId: '', amount: '', description: '', date: new Date().toISOString().split('T')[0], notes: '' };
+
 export default function BankAccounts() {
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState<FormState>({ ...emptyForm });
   const [selectedAccountId, setSelectedAccountId] = useState<number | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferForm, setTransferForm] = useState({ ...emptyTransferForm });
 
   const { data: accounts, refetch } = trpc.bankAccounts.listWithBalance.useQuery();
   const { data: transactions, isLoading: txLoading } = trpc.bankAccounts.getTransactions.useQuery(
@@ -72,6 +76,34 @@ export default function BankAccounts() {
     onSuccess: () => { refetch(); utils.bankAccounts.listWithBalance.invalidate(); setShowDeleteConfirm(null); if (selectedAccountId === showDeleteConfirm) setSelectedAccountId(null); toast.success("Conta removida!"); },
     onError: (e) => toast.error(`Erro: ${e.message}`),
   });
+
+  const transferMutation = trpc.accountTransfers.create.useMutation({
+    onSuccess: () => {
+      refetch();
+      utils.bankAccounts.listWithBalance.invalidate();
+      utils.bankAccounts.getTransactions.invalidate();
+      setShowTransferModal(false);
+      setTransferForm({ ...emptyTransferForm });
+      toast.success('Transferência realizada com sucesso!');
+    },
+    onError: (e) => toast.error(`Erro: ${e.message}`),
+  });
+
+  function handleTransfer() {
+    const amount = parseFloat(transferForm.amount.replace(',', '.'));
+    if (!transferForm.fromAccountId || !transferForm.toAccountId) { toast.error('Selecione as contas de origem e destino'); return; }
+    if (transferForm.fromAccountId === transferForm.toAccountId) { toast.error('As contas de origem e destino devem ser diferentes'); return; }
+    if (isNaN(amount) || amount <= 0) { toast.error('Valor inválido'); return; }
+    if (!transferForm.description.trim()) { toast.error('Informe uma descrição'); return; }
+    transferMutation.mutate({
+      fromAccountId: parseInt(transferForm.fromAccountId),
+      toAccountId: parseInt(transferForm.toAccountId),
+      amount: String(amount),
+      description: transferForm.description,
+      date: transferForm.date,
+      notes: transferForm.notes || undefined,
+    });
+  }
 
   const totalBalance = useMemo(() => (accounts ?? []).reduce((s, a) => s + (a.balance ?? 0), 0), [accounts]);
 
@@ -104,10 +136,16 @@ export default function BankAccounts() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Gerencie suas contas e acompanhe o saldo</p>
         </div>
-        <Button onClick={openCreate} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Nova Conta
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowTransferModal(true)} className="flex items-center gap-2">
+            <ArrowLeftRight className="w-4 h-4" />
+            Transferir
+          </Button>
+          <Button onClick={openCreate} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Nova Conta
+          </Button>
+        </div>
       </div>
 
       {/* Total consolidado */}
@@ -309,6 +347,65 @@ export default function BankAccounts() {
             <Button variant="outline" onClick={() => setShowModal(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending}>
               {(createMutation.isPending || updateMutation.isPending) ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transfer Modal */}
+      <Dialog open={showTransferModal} onOpenChange={v => { setShowTransferModal(v); if (!v) setTransferForm({ ...emptyTransferForm }); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><ArrowLeftRight className="w-5 h-5" /> Transferência entre Contas</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="tf-from">Conta de Origem</Label>
+              <Select value={transferForm.fromAccountId} onValueChange={v => setTransferForm(f => ({ ...f, fromAccountId: v }))}>
+                <SelectTrigger id="tf-from"><SelectValue placeholder="Selecione a conta de origem" /></SelectTrigger>
+                <SelectContent>
+                  {(accounts ?? []).map(a => (
+                    <SelectItem key={a.id} value={String(a.id)}>
+                      {a.name}{a.bank ? ` — ${a.bank}` : ''} ({formatCurrency(a.balance ?? 0)})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tf-to">Conta de Destino</Label>
+              <Select value={transferForm.toAccountId} onValueChange={v => setTransferForm(f => ({ ...f, toAccountId: v }))}>
+                <SelectTrigger id="tf-to"><SelectValue placeholder="Selecione a conta de destino" /></SelectTrigger>
+                <SelectContent>
+                  {(accounts ?? []).filter(a => String(a.id) !== transferForm.fromAccountId).map(a => (
+                    <SelectItem key={a.id} value={String(a.id)}>
+                      {a.name}{a.bank ? ` — ${a.bank}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tf-amount">Valor</Label>
+              <Input id="tf-amount" type="number" step="0.01" min="0.01" placeholder="0,00" value={transferForm.amount} onChange={e => setTransferForm(f => ({ ...f, amount: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tf-desc">Descrição</Label>
+              <Input id="tf-desc" placeholder="Ex: Transferência para conta conjunta" value={transferForm.description} onChange={e => setTransferForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tf-date">Data</Label>
+              <Input id="tf-date" type="date" value={transferForm.date} onChange={e => setTransferForm(f => ({ ...f, date: e.target.value }))} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="tf-notes">Observações (opcional)</Label>
+              <Input id="tf-notes" placeholder="Observações adicionais" value={transferForm.notes} onChange={e => setTransferForm(f => ({ ...f, notes: e.target.value }))} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTransferModal(false)}>Cancelar</Button>
+            <Button onClick={handleTransfer} disabled={transferMutation.isPending}>
+              {transferMutation.isPending ? 'Transferindo...' : 'Confirmar Transferência'}
             </Button>
           </DialogFooter>
         </DialogContent>

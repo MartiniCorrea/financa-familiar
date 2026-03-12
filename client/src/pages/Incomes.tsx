@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
 import { Plus, Pencil, Trash2, TrendingUp, Search } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -43,6 +45,8 @@ export default function Incomes() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<IncomeForm>(emptyForm);
+  const [detailIncome, setDetailIncome] = useState<any | null>(null);
+  const [detailNotes, setDetailNotes] = useState('');
 
   const utils = trpc.useUtils();
   const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
@@ -80,6 +84,11 @@ export default function Incomes() {
     } else {
       createMutation.mutate(payload);
     }
+  }
+
+  function openDetail(income: any) {
+    setDetailIncome(income);
+    setDetailNotes(income.notes ?? '');
   }
 
   function openEdit(income: any) {
@@ -215,7 +224,7 @@ export default function Incomes() {
               {filtered.map(income => {
                 const cat = getIncomeCategoryInfo(income.category);
                 return (
-                  <div key={income.id} className="flex items-center justify-between p-4 hover:bg-accent/20 transition-colors group">
+                  <div key={income.id} className="flex items-center justify-between p-4 hover:bg-accent/20 transition-colors group cursor-pointer" onClick={() => openDetail(income)}>
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0" style={{ backgroundColor: cat.color + '20' }}>
                         {cat.icon}
@@ -246,6 +255,70 @@ export default function Incomes() {
           )}
         </CardContent>
       </Card>
+
+      {/* Detail Sheet */}
+      <Sheet open={!!detailIncome} onOpenChange={v => { if (!v) setDetailIncome(null); }}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          {detailIncome && (() => {
+            const cat = getIncomeCategoryInfo(detailIncome.category);
+            const bankAcc = bankAccounts.find((b: any) => b.id === detailIncome.bankAccountId);
+            return (
+              <>
+                <SheetHeader className="mb-4">
+                  <SheetTitle className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center text-base" style={{ backgroundColor: cat.color + '20' }}>
+                      {cat.icon}
+                    </div>
+                    <span className="truncate">{detailIncome.description}</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-muted/40 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Valor</p>
+                      <p className="text-lg font-bold text-emerald-400">{formatCurrency(parseFloat(detailIncome.amount))}</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Data</p>
+                      <p className="text-sm font-medium">{formatDate(detailIncome.date)}</p>
+                    </div>
+                  </div>
+                  <div className="bg-muted/40 rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground mb-1">Categoria</p>
+                    <p className="text-sm font-medium">{cat.label}</p>
+                  </div>
+                  {bankAcc && (
+                    <div className="bg-muted/40 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Conta</p>
+                      <p className="text-sm font-medium">{bankAcc.name}{bankAcc.bank ? ` — ${bankAcc.bank}` : ''}</p>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label>Observações</Label>
+                    <Textarea
+                      value={detailNotes}
+                      onChange={e => setDetailNotes(e.target.value)}
+                      placeholder="Adicione observações sobre esta receita..."
+                      rows={3}
+                    />
+                    <Button size="sm" onClick={() => updateMutation.mutate({ id: detailIncome.id, notes: detailNotes || undefined })} disabled={updateMutation.isPending}>
+                      {updateMutation.isPending ? 'Salvando...' : 'Salvar Observações'}
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 pt-2 border-t border-border">
+                    <Button variant="outline" className="flex-1 gap-2" onClick={() => { setDetailIncome(null); openEdit(detailIncome); }}>
+                      <Pencil className="w-3.5 h-3.5" /> Editar Receita
+                    </Button>
+                    <Button variant="outline" className="gap-2 border-destructive text-destructive hover:bg-destructive/10" onClick={() => { deleteMutation.mutate({ id: detailIncome.id }); setDetailIncome(null); }}>
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

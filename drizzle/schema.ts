@@ -427,3 +427,18 @@ export const creditCardItems = mysqlTable("credit_card_items", {
 });
 export type CreditCardItem = typeof creditCardItems.$inferSelect;
 export type InsertCreditCardItem = typeof creditCardItems.$inferInsert;
+
+// ─── Account Transfers ────────────────────────────────────────────────────────
+export const accountTransfers = mysqlTable("account_transfers", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  fromAccountId: int("fromAccountId").notNull(),
+  toAccountId: int("toAccountId").notNull(),
+  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
+  date: date("date").notNull(),
+  description: varchar("description", { length: 255 }),
+  notes: text("notes"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type AccountTransfer = typeof accountTransfers.$inferSelect;
+export type InsertAccountTransfer = typeof accountTransfers.$inferInsert;

@@ -252,3 +252,8 @@
 
 ## Melhorias v28
 - [x] Estorno de pagamento de fatura: botão "Estornar Pagamento" reabri fatura, remove despesas lançadas automaticamente e restaura saldo da conta
+
+## Melhorias v29
+- [x] Despesas clicáveis: painel lateral (Sheet) com detalhes, observações editáveis, botões de editar e excluir
+- [x] Receitas clicáveis: painel lateral (Sheet) com detalhes, observações editáveis, botões de editar e excluir
+- [x] Transferências entre contas: botão "Transferir" em Contas Bancárias, sem impactar receitas/despesas

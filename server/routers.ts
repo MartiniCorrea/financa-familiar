@@ -39,6 +39,20 @@ const bankAccountsRouter = router({
   delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteBankAccount(input.id, ctx.user.id)),
 });
 
+// ─── Account Transfers Router ───────────────────────────────────────────────────────
+const accountTransfersRouter = router({
+  list: protectedProcedure.query(({ ctx }) => db.listAccountTransfers(ctx.user.id)),
+  create: protectedProcedure.input(z.object({
+    fromAccountId: z.number(),
+    toAccountId: z.number(),
+    amount: z.string(),
+    date: z.string(),
+    description: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.createAccountTransfer(ctx.user.id, input as any)),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteAccountTransfer(input.id, ctx.user.id)),
+});
+
 // ─── Family Members Router ─────────────────────────────────────────────────────────
 const familyMembersRouter = router({
   list: protectedProcedure.query(({ ctx }) => db.getFamilyMembers(ctx.user.id)),
@@ -520,6 +534,7 @@ export const appRouter = router({
   expenseGroups: expenseGroupsRouter,
   balance: balanceRouter,
   bankAccounts: bankAccountsRouter,
+  accountTransfers: accountTransfersRouter,
   creditCardInvoices: creditCardInvoicesRouter,
 });
 

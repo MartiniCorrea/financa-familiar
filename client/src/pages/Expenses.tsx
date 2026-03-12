@@ -6,8 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Pencil, Trash2, TrendingDown, Search, Layers } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Pencil, Trash2, TrendingDown, Search, Layers, X, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -42,6 +44,9 @@ export default function Expenses() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<ExpenseForm>(emptyForm);
+  const [detailExpense, setDetailExpense] = useState<any | null>(null);
+  const [detailNotes, setDetailNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
@@ -85,6 +90,19 @@ export default function Expenses() {
     };
     if (editId) updateMutation.mutate({ id: editId, ...payload, bankAccountId: payload.bankAccountId ?? null });
     else createMutation.mutate(payload);
+  }
+
+  function openDetail(expense: any) {
+    setDetailExpense(expense);
+    setDetailNotes(expense.notes ?? '');
+  }
+
+  async function saveDetailNotes() {
+    if (!detailExpense) return;
+    setSavingNotes(true);
+    updateMutation.mutate({ id: detailExpense.id, notes: detailNotes || undefined });
+    setSavingNotes(false);
+    setDetailExpense((prev: any) => prev ? { ...prev, notes: detailNotes } : null);
   }
 
   function openEdit(expense: any) {
@@ -295,7 +313,7 @@ export default function Expenses() {
                 const subcatInfo = getSubcatInfo((expense as any).subcategoryId);
                 const subcatColor = subcatInfo?.sub.color || '#6366f1';
                 return (
-                  <div key={expense.id} className="flex items-center justify-between p-4 hover:bg-accent/20 transition-colors group">
+                  <div key={expense.id} className="flex items-center justify-between p-4 hover:bg-accent/20 transition-colors group cursor-pointer" onClick={() => openDetail(expense)}>
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: subcatColor + '20' }}>
                         <span className="text-sm font-bold" style={{ color: subcatColor }}>{expense.description.charAt(0).toUpperCase()}</span>
@@ -337,6 +355,90 @@ export default function Expenses() {
           )}
         </CardContent>
       </Card>
+
+      {/* Detail Sheet */}
+      <Sheet open={!!detailExpense} onOpenChange={v => { if (!v) setDetailExpense(null); }}>
+        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+          {detailExpense && (() => {
+            const subcatInfo = getSubcatInfo(detailExpense.subcategoryId);
+            const subcatColor = subcatInfo?.sub.color || '#6366f1';
+            const isCard = detailExpense.sourceType === 'cartao_credito';
+            const bankAcc = bankAccounts.find(b => b.id === detailExpense.bankAccountId);
+            return (
+              <>
+                <SheetHeader className="mb-4">
+                  <SheetTitle className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: subcatColor + '20' }}>
+                      <span className="text-sm font-bold" style={{ color: subcatColor }}>{detailExpense.description.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <span className="truncate">{detailExpense.description}</span>
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-muted/40 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Valor</p>
+                      <p className="text-lg font-bold text-destructive">{formatCurrency(parseFloat(detailExpense.amount))}</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Data</p>
+                      <p className="text-sm font-medium">{formatDate(detailExpense.date)}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-muted/40 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Categoria</p>
+                      <p className="text-sm font-medium">{subcatInfo ? subcatInfo.sub.name : 'Sem categoria'}</p>
+                    </div>
+                    <div className="bg-muted/40 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Pagamento</p>
+                      <p className="text-sm font-medium capitalize">{detailExpense.paymentMethod || 'outros'}</p>
+                    </div>
+                  </div>
+                  {bankAcc && (
+                    <div className="bg-muted/40 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Conta</p>
+                      <p className="text-sm font-medium">{bankAcc.name}{bankAcc.bank ? ` — ${bankAcc.bank}` : ''}</p>
+                    </div>
+                  )}
+                  {isCard && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground bg-blue-500/10 rounded-lg p-3">
+                      <CreditCard className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Lançado automaticamente ao pagar fatura do cartão</span>
+                    </div>
+                  )}
+                  {(detailExpense.installments ?? 1) > 1 && (
+                    <div className="bg-muted/40 rounded-lg p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Parcelas</p>
+                      <p className="text-sm font-medium">{detailExpense.currentInstallment}/{detailExpense.installments}x</p>
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label>Observações</Label>
+                    <Textarea
+                      value={detailNotes}
+                      onChange={e => setDetailNotes(e.target.value)}
+                      placeholder="Adicione observações sobre esta despesa..."
+                      rows={3}
+                    />
+                    <Button size="sm" onClick={saveDetailNotes} disabled={savingNotes || updateMutation.isPending}>
+                      {updateMutation.isPending ? 'Salvando...' : 'Salvar Observações'}
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 pt-2 border-t border-border">
+                    <Button variant="outline" className="flex-1 gap-2" onClick={() => { setDetailExpense(null); openEdit(detailExpense); }}>
+                      <Pencil className="w-3.5 h-3.5" /> Editar Despesa
+                    </Button>
+                    <Button variant="outline" className="gap-2 border-destructive text-destructive hover:bg-destructive/10" onClick={() => { deleteMutation.mutate({ id: detailExpense.id }); setDetailExpense(null); }}>
+                      <Trash2 className="w-3.5 h-3.5" /> Excluir
+                    </Button>
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
