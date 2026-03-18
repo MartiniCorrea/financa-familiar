@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Pencil, Trash2, TrendingDown, Search, Layers, X, CreditCard } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Plus, Pencil, Trash2, TrendingDown, Search, Layers, X, CreditCard, Repeat } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -24,16 +25,21 @@ const PAYMENT_METHODS = [
   { value: 'credito', label: 'Crédito' }, { value: 'pix', label: 'PIX' },
   { value: 'transferencia', label: 'Transferência' }, { value: 'boleto', label: 'Boleto' }, { value: 'outros', label: 'Outros' },
 ];
+const FREQUENCY_LABELS: Record<string, string> = {
+  monthly: "Mensal", weekly: "Semanal", yearly: "Anual",
+};
 
 type ExpenseForm = {
   description: string; amount: string; date: string;
   paymentMethod: string; installments: string; notes: string;
   subcategoryId: string; bankAccountId: string;
+  isRecurring: boolean; frequency: string; endDate: string;
 };
 
 const emptyForm: ExpenseForm = {
   description: '', amount: '', date: getTodayString(),
   paymentMethod: 'outros', installments: '1', notes: '', subcategoryId: '', bankAccountId: '',
+  isRecurring: false, frequency: 'monthly', endDate: '',
 };
 
 export default function Expenses() {
@@ -41,6 +47,10 @@ export default function Expenses() {
   const [year, setYear] = useState(getCurrentYear());
   const [search, setSearch] = useState('');
   const [subcatFilter, setSubcatFilter] = useState('all');
+  const [accountFilter, setAccountFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [useCustomDate, setUseCustomDate] = useState(false);
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<ExpenseForm>(emptyForm);
@@ -50,8 +60,10 @@ export default function Expenses() {
 
   const utils = trpc.useUtils();
   const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
-  const { data: expenses = [], isLoading } = trpc.expenses.list.useQuery({ month, year });
-  // Busca grupos e subcategorias para o seletor 50/30/20
+  const queryFilters = useCustomDate && dateFrom && dateTo
+    ? { dateFrom, dateTo, bankAccountId: accountFilter !== 'all' ? parseInt(accountFilter) : undefined }
+    : { month, year, bankAccountId: accountFilter !== 'all' ? parseInt(accountFilter) : undefined };
+  const { data: expenses = [], isLoading } = trpc.expenses.list.useQuery(queryFilters);
   const { data: expenseGroups = [] } = trpc.expenseGroups.list.useQuery();
   const { data: allSubcats = [] } = trpc.expenseGroups.subcategories.list.useQuery({});
 
@@ -66,6 +78,10 @@ export default function Expenses() {
   const deleteMutation = trpc.expenses.delete.useMutation({
     onSuccess: () => { utils.expenses.list.invalidate(); utils.dashboard.summary.invalidate(); toast.success("Despesa removida!"); },
     onError: () => toast.error("Erro ao remover despesa"),
+  });
+  const createRecurringMutation = trpc.recurring.create.useMutation({
+    onSuccess: () => { utils.recurring.list.invalidate(); toast.success("Recorrência criada! Os próximos lançamentos serão gerados automaticamente."); },
+    onError: (err) => toast.error("Erro ao criar recorrência: " + err.message),
   });
 
   const filtered = expenses.filter(e =>
@@ -88,8 +104,26 @@ export default function Expenses() {
       subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined,
       bankAccountId: form.bankAccountId ? parseInt(form.bankAccountId) : undefined,
     };
-    if (editId) updateMutation.mutate({ id: editId, ...payload, bankAccountId: payload.bankAccountId ?? null });
-    else createMutation.mutate(payload);
+    if (editId) {
+      updateMutation.mutate({ id: editId, ...payload, bankAccountId: payload.bankAccountId ?? null });
+    } else {
+      createMutation.mutate(payload);
+      // Se for recorrente, cria a regra de recorrência também
+      if (form.isRecurring) {
+        createRecurringMutation.mutate({
+          type: 'expense',
+          description: form.description,
+          amount: form.amount,
+          paymentMethod: form.paymentMethod as any,
+          bankAccountId: form.bankAccountId ? parseInt(form.bankAccountId) : undefined,
+          subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined,
+          frequency: form.frequency as any,
+          startDate: form.date,
+          endDate: form.endDate || undefined,
+          notes: form.notes || undefined,
+        });
+      }
+    }
   }
 
   function openDetail(expense: any) {
@@ -115,11 +149,11 @@ export default function Expenses() {
       notes: expense.notes ?? '',
       subcategoryId: expense.subcategoryId ? String(expense.subcategoryId) : '',
       bankAccountId: expense.bankAccountId ? String(expense.bankAccountId) : '',
+      isRecurring: false, frequency: 'monthly', endDate: '',
     });
     setOpen(true);
   }
 
-  // Encontra a subcategoria de uma despesa para exibir na lista
   function getSubcatInfo(subcategoryId: number | null | undefined) {
     if (!subcategoryId) return null;
     const sub = allSubcats.find(s => s.id === subcategoryId);
@@ -162,41 +196,41 @@ export default function Expenses() {
               </div>
               {/* Categoria 50/30/20 */}
               <div className="space-y-1.5">
-                  <Label className="flex items-center gap-1.5">
-                    <Layers className="w-3.5 h-3.5 text-primary" />
-                    Categoria 50/30/20
-                    <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
-                  </Label>
-                  <Select
-                    value={form.subcategoryId || "none"}
-                    onValueChange={v => setForm(f => ({ ...f, subcategoryId: v === "none" ? "" : v }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione uma subcategoria..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sem subcategoria</SelectItem>
-                      {expenseGroups.map(group => {
-                        const groupSubcats = allSubcats.filter(s => s.groupId === group.id);
-                        if (groupSubcats.length === 0) return null;
-                        return (
-                          <div key={group.id}>
-                            <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                              {group.name}
-                            </div>
-                            {groupSubcats.map(sub => (
-                              <SelectItem key={sub.id} value={String(sub.id)}>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sub.color || "#6366f1" }} />
-                                  {sub.name}
-                                </div>
-                              </SelectItem>
-                            ))}
+                <Label className="flex items-center gap-1.5">
+                  <Layers className="w-3.5 h-3.5 text-primary" />
+                  Categoria 50/30/20
+                  <span className="text-xs text-muted-foreground font-normal">(opcional)</span>
+                </Label>
+                <Select
+                  value={form.subcategoryId || "none"}
+                  onValueChange={v => setForm(f => ({ ...f, subcategoryId: v === "none" ? "" : v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma subcategoria..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem subcategoria</SelectItem>
+                    {expenseGroups.map(group => {
+                      const groupSubcats = allSubcats.filter(s => s.groupId === group.id);
+                      if (groupSubcats.length === 0) return null;
+                      return (
+                        <div key={group.id}>
+                          <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                            {group.name}
                           </div>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
+                          {groupSubcats.map(sub => (
+                            <SelectItem key={sub.id} value={String(sub.id)}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: sub.color || "#6366f1" }} />
+                                {sub.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -228,6 +262,43 @@ export default function Expenses() {
                 <Label>Observações</Label>
                 <Input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} placeholder="Opcional" />
               </div>
+
+              {/* Recorrência — apenas para novas despesas */}
+              {!editId && (
+                <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/20">
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="isRecurring"
+                      checked={form.isRecurring}
+                      onCheckedChange={v => setForm(f => ({ ...f, isRecurring: !!v }))}
+                    />
+                    <Label htmlFor="isRecurring" className="flex items-center gap-1.5 cursor-pointer font-medium">
+                      <Repeat className="w-3.5 h-3.5 text-primary" />
+                      Despesa recorrente
+                    </Label>
+                  </div>
+                  {form.isRecurring && (
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Frequência</Label>
+                        <Select value={form.frequency} onValueChange={v => setForm(f => ({ ...f, frequency: v }))}>
+                          <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="monthly">Mensal</SelectItem>
+                            <SelectItem value="weekly">Semanal</SelectItem>
+                            <SelectItem value="yearly">Anual</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Data de encerramento</Label>
+                        <Input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} className="h-8 text-sm" placeholder="Opcional" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2 pt-2">
                 <Button type="button" variant="outline" className="flex-1" onClick={() => setOpen(false)}>Cancelar</Button>
                 <Button type="submit" className="flex-1" disabled={createMutation.isPending || updateMutation.isPending}>
@@ -268,14 +339,42 @@ export default function Expenses() {
             })}
           </SelectContent>
         </Select>
-        <Select value={String(month)} onValueChange={v => setMonth(Number(v))}>
-          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-          <SelectContent>{MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label.charAt(0).toUpperCase() + m.label.slice(1)}</SelectItem>)}</SelectContent>
+        <Select value={accountFilter} onValueChange={setAccountFilter}>
+          <SelectTrigger className="w-44"><SelectValue placeholder="Conta" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as contas</SelectItem>
+            {bankAccounts.map((acc: any) => (
+              <SelectItem key={acc.id} value={String(acc.id)}>{acc.name}{acc.bank ? ` — ${acc.bank}` : ''}</SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-        <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
-          <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
-          <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
-        </Select>
+        {!useCustomDate ? (
+          <>
+            <Select value={String(month)} onValueChange={v => setMonth(Number(v))}>
+              <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>{MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label.charAt(0).toUpperCase() + m.label.slice(1)}</SelectItem>)}</SelectContent>
+            </Select>
+            <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
+              <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+              <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => setUseCustomDate(true)} className="text-xs">Período personalizado</Button>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs whitespace-nowrap">De:</Label>
+              <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} className="w-36 h-9" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Label className="text-xs whitespace-nowrap">Até:</Label>
+              <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} className="w-36 h-9" />
+            </div>
+            <Button variant="outline" size="sm" onClick={() => { setUseCustomDate(false); setDateFrom(''); setDateTo(''); }} className="text-xs gap-1">
+              <X className="w-3 h-3" /> Mês/Ano
+            </Button>
+          </>
+        )}
       </div>
 
       {/* Summary */}
@@ -310,6 +409,7 @@ export default function Expenses() {
             <div className="divide-y divide-border">
               {filtered.map(expense => {
                 const isInstallment = (expense.installments ?? 1) > 1;
+                const isRecurring = !!(expense as any).recurringRuleId;
                 const subcatInfo = getSubcatInfo((expense as any).subcategoryId);
                 const subcatColor = subcatInfo?.sub.color || '#6366f1';
                 return (
@@ -334,16 +434,21 @@ export default function Expenses() {
                             <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">Sem categoria</Badge>
                           )}
                           {isInstallment && <Badge variant="secondary" className="text-xs px-1.5 py-0">{expense.currentInstallment}/{expense.installments}x</Badge>}
+                          {isRecurring && (
+                            <Badge className="text-xs px-1.5 py-0 bg-violet-500/15 text-violet-600 border-violet-500/30 border gap-0.5">
+                              <Repeat className="w-2.5 h-2.5" /> Recorrente
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 ml-3">
                       <span className="text-base font-semibold text-destructive">{formatCurrency(expense.amount)}</span>
                       <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(expense)}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => { e.stopPropagation(); openEdit(expense); }}>
                           <Pencil className="w-3.5 h-3.5 text-muted-foreground" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => deleteMutation.mutate({ id: expense.id })}>
+                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={e => { e.stopPropagation(); deleteMutation.mutate({ id: expense.id }); }}>
                           <Trash2 className="w-3.5 h-3.5 text-destructive" />
                         </Button>
                       </div>
@@ -363,7 +468,8 @@ export default function Expenses() {
             const subcatInfo = getSubcatInfo(detailExpense.subcategoryId);
             const subcatColor = subcatInfo?.sub.color || '#6366f1';
             const isCard = detailExpense.sourceType === 'cartao_credito';
-            const bankAcc = bankAccounts.find(b => b.id === detailExpense.bankAccountId);
+            const isRecurring = !!detailExpense.recurringRuleId;
+            const bankAcc = bankAccounts.find((b: any) => b.id === detailExpense.bankAccountId);
             return (
               <>
                 <SheetHeader className="mb-4">
@@ -398,13 +504,19 @@ export default function Expenses() {
                   {bankAcc && (
                     <div className="bg-muted/40 rounded-lg p-3">
                       <p className="text-xs text-muted-foreground mb-1">Conta</p>
-                      <p className="text-sm font-medium">{bankAcc.name}{bankAcc.bank ? ` — ${bankAcc.bank}` : ''}</p>
+                      <p className="text-sm font-medium">{(bankAcc as any).name}{(bankAcc as any).bank ? ` — ${(bankAcc as any).bank}` : ''}</p>
                     </div>
                   )}
                   {isCard && (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground bg-blue-500/10 rounded-lg p-3">
                       <CreditCard className="w-3.5 h-3.5 text-blue-400" />
                       <span>Lançado automaticamente ao pagar fatura do cartão</span>
+                    </div>
+                  )}
+                  {isRecurring && (
+                    <div className="flex items-center gap-2 text-xs bg-violet-500/10 text-violet-600 rounded-lg p-3">
+                      <Repeat className="w-3.5 h-3.5" />
+                      <span>Despesa recorrente — gerada automaticamente</span>
                     </div>
                   )}
                   {(detailExpense.installments ?? 1) > 1 && (

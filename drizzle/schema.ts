@@ -74,6 +74,7 @@ export const incomes = mysqlTable("incomes", {
   date: date("date").notNull(),
   isRecurring: boolean("isRecurring").default(false),
   recurringDay: int("recurringDay"),
+  recurringRuleId: int("recurringRuleId"),
   notes: text("notes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -146,6 +147,7 @@ export const expenses = mysqlTable("expenses", {
   notes: text("notes"),
   sourceType: mysqlEnum("sourceType", ["normal", "cartao_credito"]).notNull().default("normal"),
   creditCardItemId: int("creditCardItemId"),
+  recurringRuleId: int("recurringRuleId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -423,6 +425,7 @@ export const creditCardItems = mysqlTable("credit_card_items", {
   notes: text("notes"),
   isRecurring: tinyint("isRecurring").notNull().default(0),
   expenseId: int("expenseId"),
+  recurringRuleId: int("recurringRuleId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type CreditCardItem = typeof creditCardItems.$inferSelect;
@@ -442,3 +445,34 @@ export const accountTransfers = mysqlTable("account_transfers", {
 });
 export type AccountTransfer = typeof accountTransfers.$inferSelect;
 export type InsertAccountTransfer = typeof accountTransfers.$inferInsert;
+
+// ─── Recurring Rules ──────────────────────────────────────────────────────────
+// Armazena regras de recorrência para despesas, receitas e itens de cartão
+export const recurringRules = mysqlTable("recurring_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  type: mysqlEnum("type", ["expense", "income", "credit_card_item"]).notNull(),
+  // Dados do lançamento recorrente
+  description: varchar("description", { length: 255 }).notNull(),
+  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
+  // Para expenses/income
+  parentCategory: varchar("parentCategory", { length: 64 }),
+  subcategoryId: int("subcategoryId"),
+  bankAccountId: int("bankAccountId"),
+  familyMemberId: int("familyMemberId"),
+  paymentMethod: varchar("paymentMethod", { length: 32 }),
+  category: varchar("category", { length: 64 }), // para incomes
+  notes: text("notes"),
+  // Para credit_card_item
+  creditCardId: int("creditCardId"),
+  // Configuração da recorrência
+  frequency: mysqlEnum("frequency", ["monthly", "weekly", "yearly"]).notNull().default("monthly"),
+  dayOfMonth: int("dayOfMonth"), // dia do mês para lançar (ex: 5 = todo dia 5)
+  startDate: date("startDate").notNull(), // data do primeiro lançamento
+  endDate: date("endDate"), // data de término (null = sem fim)
+  isActive: tinyint("isActive").notNull().default(1),
+  lastGeneratedDate: date("lastGeneratedDate"), // última data gerada
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+export type RecurringRule = typeof recurringRules.$inferSelect;
+export type InsertRecurringRule = typeof recurringRules.$inferInsert;

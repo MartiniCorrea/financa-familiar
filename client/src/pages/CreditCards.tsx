@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight, CheckCircle2, PlusCircle, X, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight, CheckCircle2, PlusCircle, X, RotateCcw, Repeat } from "lucide-react";
 import { useState, useMemo } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 
 const CARD_COLORS = ['#6366f1', '#f59e0b', '#22c55e', '#ef4444', '#06b6d4', '#ec4899', '#8b5cf6', '#d97706'];
@@ -44,8 +45,8 @@ const EXPENSE_CATEGORIES = [
 type CardForm = { name: string; bank: string; lastFourDigits: string; creditLimit: string; closingDay: string; dueDay: string; color: string; };
 const emptyCardForm: CardForm = { name: '', bank: '', lastFourDigits: '', creditLimit: '', closingDay: '1', dueDay: '10', color: '#6366f1' };
 
-type ItemForm = { description: string; amount: string; subcategoryId: string; purchaseDate: string; installments: string; notes: string; };
-const emptyItemForm: ItemForm = { description: '', amount: '', subcategoryId: '', purchaseDate: getTodayString(), installments: '1', notes: '' };
+type ItemForm = { description: string; amount: string; subcategoryId: string; purchaseDate: string; installments: string; notes: string; isRecurring: boolean; frequency: string; endDate: string; };
+const emptyItemForm: ItemForm = { description: '', amount: '', subcategoryId: '', purchaseDate: getTodayString(), installments: '1', notes: '', isRecurring: false, frequency: 'monthly', endDate: '' };
 
 function statusBadge(status: string) {
   if (status === 'paga') return <Badge className="bg-emerald-400/20 text-emerald-400 border-0">Paga</Badge>;
@@ -107,6 +108,11 @@ export default function CreditCards() {
     onError: (e) => toast.error(e.message || "Erro ao abrir fatura"),
   });
 
+  const createRecurringMutation = trpc.recurring.create.useMutation({
+    onSuccess: () => { utils.recurring.list.invalidate(); },
+    onError: (err) => toast.error("Erro ao criar recorrência: " + err.message),
+  });
+
   const addItemMutation = trpc.creditCardInvoices.addItem.useMutation({
     onSuccess: (result) => {
       utils.creditCardInvoices.list.invalidate();
@@ -166,6 +172,9 @@ export default function CreditCards() {
           : String(item.purchaseDate).split('T')[0],
       installments: String(item.totalInstallments || 1),
       notes: item.notes || '',
+      isRecurring: false,
+      frequency: 'monthly',
+      endDate: '',
     });
     setEditItemOpen(true);
   }
@@ -244,6 +253,20 @@ export default function CreditCards() {
       installments: parseInt(itemForm.installments) || 1,
       notes: itemForm.notes || undefined,
     });
+    // Se for recorrente, cria a regra de recorrência
+    if (itemForm.isRecurring && selectedCardId) {
+      createRecurringMutation.mutate({
+        type: 'credit_card_item',
+        description: itemForm.description,
+        amount: itemForm.amount,
+        creditCardId: selectedCardId,
+        subcategoryId: subcatId,
+        frequency: itemForm.frequency as any,
+        startDate: itemForm.purchaseDate,
+        endDate: itemForm.endDate || undefined,
+        notes: itemForm.notes || undefined,
+      });
+    }
   }
 
   function openAddItem() {
@@ -646,6 +669,39 @@ export default function CreditCards() {
                 As parcelas 2 a {itemForm.installments} serão lançadas automaticamente nas faturas dos próximos meses.
               </div>
             )}
+            {/* Recorrência */}
+            <div className="border border-border rounded-lg p-3 space-y-3 bg-muted/20">
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="item-recurring"
+                  checked={itemForm.isRecurring}
+                  onCheckedChange={v => setItemForm(f => ({ ...f, isRecurring: !!v }))}
+                />
+                <Label htmlFor="item-recurring" className="flex items-center gap-1.5 cursor-pointer font-medium">
+                  <Repeat className="w-3.5 h-3.5 text-primary" />
+                  Gasto recorrente
+                </Label>
+              </div>
+              {itemForm.isRecurring && (
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Frequência</Label>
+                    <Select value={itemForm.frequency} onValueChange={v => setItemForm(f => ({ ...f, frequency: v }))}>
+                      <SelectTrigger className="h-8 text-sm"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="monthly">Mensal</SelectItem>
+                        <SelectItem value="weekly">Semanal</SelectItem>
+                        <SelectItem value="yearly">Anual</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Data de encerramento</Label>
+                    <Input type="date" value={itemForm.endDate} onChange={e => setItemForm(f => ({ ...f, endDate: e.target.value }))} className="h-8 text-sm" />
+                  </div>
+                </div>
+              )}
+            </div>
             <div className="flex gap-2 pt-1">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setItemOpen(false)}>Cancelar</Button>
               <Button type="submit" className="flex-1" disabled={addItemMutation.isPending}>

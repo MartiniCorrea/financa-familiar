@@ -69,7 +69,7 @@ const familyMembersRouter = router({
 
 // ─── Incomes Router ───────────────────────────────────────────────────────────
 const incomesRouter = router({
-  list: protectedProcedure.input(z.object({ month: z.number().optional(), year: z.number().optional(), memberId: z.number().optional() }).optional())
+  list: protectedProcedure.input(z.object({ month: z.number().optional(), year: z.number().optional(), memberId: z.number().optional(), bankAccountId: z.number().optional(), dateFrom: z.string().optional(), dateTo: z.string().optional() }).optional())
     .query(({ ctx, input }) => db.getIncomes(ctx.user.id, input)),
   create: protectedProcedure.input(z.object({
     description: z.string().min(1).max(255),
@@ -94,7 +94,7 @@ const incomesRouter = router({
 
 // ─── Expenses Router ──────────────────────────────────────────────────────────
 const expensesRouter = router({
-  list: protectedProcedure.input(z.object({ month: z.number().optional(), year: z.number().optional(), memberId: z.number().optional(), category: z.string().optional() }).optional())
+  list: protectedProcedure.input(z.object({ month: z.number().optional(), year: z.number().optional(), memberId: z.number().optional(), category: z.string().optional(), bankAccountId: z.number().optional(), dateFrom: z.string().optional(), dateTo: z.string().optional() }).optional())
     .query(({ ctx, input }) => db.getExpenses(ctx.user.id, input)),
   create: protectedProcedure.input(z.object({
     description: z.string().min(1).max(255),
@@ -503,11 +503,32 @@ const creditCardInvoicesRouter = router({
     invoiceId: z.number(),
     bankAccountId: z.number().optional().nullable(),
   })).mutation(({ ctx, input }) => db.payInvoice(input.invoiceId, ctx.user.id, input.bankAccountId)),
-  reversePayment: protectedProcedure.input(z.object({
+   reversePayment: protectedProcedure.input(z.object({
     invoiceId: z.number(),
   })).mutation(({ ctx, input }) => db.reverseInvoicePayment(input.invoiceId, ctx.user.id)),
 });
-
+// ─── Recurring Router ───────────────────────────────────────────────────────────────────────────────────────────
+const recurringRouter = router({
+  list: protectedProcedure.query(({ ctx }) => db.getRecurringRules(ctx.user.id)),
+  create: protectedProcedure.input(z.object({
+    type: z.enum(['expense', 'income', 'credit_card_item']),
+    description: z.string().min(1).max(255),
+    amount: z.string(),
+    category: z.string().optional(),
+    paymentMethod: z.enum(['dinheiro','debito','credito','pix','transferencia','boleto','outros']).optional(),
+    bankAccountId: z.number().optional(),
+    creditCardId: z.number().optional(),
+    subcategoryId: z.number().optional(),
+    familyMemberId: z.number().optional(),
+    frequency: z.enum(['monthly', 'weekly', 'yearly']),
+    startDate: z.string(),
+    endDate: z.string().optional(),
+    notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => db.createRecurringRule(ctx.user.id, input as any)),
+  cancel: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.cancelRecurringRule(input.id, ctx.user.id)),
+  delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteRecurringRule(input.id, ctx.user.id)),
+  generatePending: protectedProcedure.mutation(({ ctx }) => db.generatePendingRecurringEntries(ctx.user.id)),
+});
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -536,6 +557,7 @@ export const appRouter = router({
   bankAccounts: bankAccountsRouter,
   accountTransfers: accountTransfersRouter,
   creditCardInvoices: creditCardInvoicesRouter,
+  recurring: recurringRouter,
 });
 
 export type AppRouter = typeof appRouter;

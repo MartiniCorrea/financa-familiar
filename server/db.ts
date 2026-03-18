@@ -8,8 +8,8 @@ import {
   InsertInvestmentTransaction, InsertPriceHistory, InsertShoppingItem,
   InsertShoppingList, InsertSupermarket, InsertUser, Investment,
   InvestmentTransaction, PriceHistory, ShoppingItem, ShoppingList, Supermarket,
-  AccountTransfer, InsertAccountTransfer,
-  accountTransfers,
+  AccountTransfer, InsertAccountTransfer, RecurringRule, InsertRecurringRule,
+  accountTransfers, recurringRules,
   bankAccounts, bills, budgets, creditCardInvoices, creditCardItems, creditCards, expenseCategories, expenses, familyMembers,
   financialGoals, goalContributions, incomes, investmentTransactions,
   investments, priceHistory, shoppingItems, shoppingLists, supermarkets, users,
@@ -87,17 +87,20 @@ export async function deleteFamilyMember(id: number, userId: number) {
 }
 
 // ─── Incomes ──────────────────────────────────────────────────────────────────
-export async function getIncomes(userId: number, filters?: { month?: number; year?: number; memberId?: number }) {
+export async function getIncomes(userId: number, filters?: { month?: number; year?: number; memberId?: number; bankAccountId?: number; dateFrom?: string; dateTo?: string }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(incomes.userId, userId)];
-  if (filters?.month && filters?.year) {
+  if (filters?.dateFrom && filters?.dateTo) {
+    conditions.push(sql`${incomes.date} >= ${filters.dateFrom}`, sql`${incomes.date} <= ${filters.dateTo}`);
+  } else if (filters?.month && filters?.year) {
     const start = `${filters.year}-${String(filters.month).padStart(2, '0')}-01`;
     const lastDay = new Date(filters.year, filters.month, 0).getDate();
     const end = `${filters.year}-${String(filters.month).padStart(2, '0')}-${lastDay}`;
     conditions.push(sql`${incomes.date} >= ${start}`, sql`${incomes.date} <= ${end}`);
   }
   if (filters?.memberId) conditions.push(eq(incomes.familyMemberId, filters.memberId));
+  if (filters?.bankAccountId) conditions.push(eq(incomes.bankAccountId, filters.bankAccountId));
   return db.select().from(incomes).where(and(...conditions)).orderBy(desc(incomes.date));
 }
 
@@ -120,11 +123,13 @@ export async function deleteIncome(id: number, userId: number) {
 }
 
 // ─── Expenses ─────────────────────────────────────────────────────────────────
-export async function getExpenses(userId: number, filters?: { month?: number; year?: number; memberId?: number; category?: string }) {
+export async function getExpenses(userId: number, filters?: { month?: number; year?: number; memberId?: number; category?: string; bankAccountId?: number; dateFrom?: string; dateTo?: string }) {
   const db = await getDb();
   if (!db) return [];
   const conditions = [eq(expenses.userId, userId)];
-  if (filters?.month && filters?.year) {
+  if (filters?.dateFrom && filters?.dateTo) {
+    conditions.push(sql`${expenses.date} >= ${filters.dateFrom}`, sql`${expenses.date} <= ${filters.dateTo}`);
+  } else if (filters?.month && filters?.year) {
     const start = `${filters.year}-${String(filters.month).padStart(2, '0')}-01`;
     const lastDay = new Date(filters.year, filters.month, 0).getDate();
     const end = `${filters.year}-${String(filters.month).padStart(2, '0')}-${lastDay}`;
@@ -132,6 +137,7 @@ export async function getExpenses(userId: number, filters?: { month?: number; ye
   }
   if (filters?.memberId) conditions.push(eq(expenses.familyMemberId, filters.memberId));
   if (filters?.category) conditions.push(eq(expenses.parentCategory, filters.category as any));
+  if (filters?.bankAccountId) conditions.push(eq(expenses.bankAccountId, filters.bankAccountId));
   return db.select().from(expenses).where(and(...conditions)).orderBy(desc(expenses.date));
 }
 
@@ -1128,4 +1134,156 @@ export async function deleteAccountTransfer(id: number, userId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
   return db.delete(accountTransfers).where(and(eq(accountTransfers.id, id), eq(accountTransfers.userId, userId)));
+}
+
+// ─── Recurring Rules ──────────────────────────────────────────────────────────
+export async function getRecurringRules(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.select().from(recurringRules)
+    .where(eq(recurringRules.userId, userId))
+    .orderBy(desc(recurringRules.createdAt));
+}
+
+export async function createRecurringRule(userId: number, data: Omit<InsertRecurringRule, 'userId'>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  const result = await db.insert(recurringRules).values({ ...data, userId });
+  return { id: (result as any).insertId };
+}
+
+export async function updateRecurringRule(id: number, userId: number, data: Partial<InsertRecurringRule>) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.update(recurringRules).set(data).where(and(eq(recurringRules.id, id), eq(recurringRules.userId, userId)));
+}
+
+export async function cancelRecurringRule(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.update(recurringRules)
+    .set({ isActive: 0, endDate: new Date().toISOString().split('T')[0] as unknown as Date })
+    .where(and(eq(recurringRules.id, id), eq(recurringRules.userId, userId)));
+}
+
+export async function deleteRecurringRule(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+  return db.delete(recurringRules).where(and(eq(recurringRules.id, id), eq(recurringRules.userId, userId)));
+}
+
+/**
+ * Gera os lançamentos pendentes de todas as regras de recorrência ativas do usuário.
+ * Chamado ao carregar Despesas, Receitas ou Cartões para garantir que os lançamentos estejam atualizados.
+ */
+export async function generatePendingRecurringEntries(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  const rules = await db.select().from(recurringRules)
+    .where(and(eq(recurringRules.userId, userId), eq(recurringRules.isActive, 1)));
+
+  const today = new Date();
+  const results: { ruleId: number; generated: number }[] = [];
+
+  for (const rule of rules) {
+    let generated = 0;
+    const startDate = new Date(rule.startDate);
+    const endDate = rule.endDate ? new Date(rule.endDate) : null;
+    const lastGenerated = rule.lastGeneratedDate ? new Date(rule.lastGeneratedDate) : null;
+
+    // Calcular próxima data a gerar
+    let nextDate = lastGenerated ? new Date(lastGenerated) : new Date(startDate);
+
+    // Avançar para o próximo período se já gerou a data inicial
+    if (lastGenerated) {
+      if (rule.frequency === 'monthly') {
+        nextDate.setMonth(nextDate.getMonth() + 1);
+      } else if (rule.frequency === 'weekly') {
+        nextDate.setDate(nextDate.getDate() + 7);
+      } else if (rule.frequency === 'yearly') {
+        nextDate.setFullYear(nextDate.getFullYear() + 1);
+      }
+    }
+
+    // Gerar todos os lançamentos até hoje
+    while (nextDate <= today) {
+      if (endDate && nextDate > endDate) break;
+
+      const dateStr = nextDate.toISOString().split('T')[0];
+
+      if (rule.type === 'expense') {
+        await db.insert(expenses).values({
+          userId,
+          description: rule.description,
+          amount: rule.amount,
+          date: dateStr as unknown as Date,
+          parentCategory: (rule.parentCategory as any) || 'outros',
+          subcategoryId: rule.subcategoryId ?? undefined,
+          bankAccountId: rule.bankAccountId ?? undefined,
+          familyMemberId: rule.familyMemberId ?? undefined,
+          paymentMethod: (rule.paymentMethod as any) || 'outros',
+          notes: rule.notes ? `${rule.notes} [Recorrente]` : '[Recorrente]',
+          recurringRuleId: rule.id,
+        });
+      } else if (rule.type === 'income') {
+        await db.insert(incomes).values({
+          userId,
+          description: rule.description,
+          amount: rule.amount,
+          date: dateStr as unknown as Date,
+          category: (rule.category as any) || 'outros',
+          bankAccountId: rule.bankAccountId ?? undefined,
+          familyMemberId: rule.familyMemberId ?? undefined,
+          notes: rule.notes ? `${rule.notes} [Recorrente]` : '[Recorrente]',
+          recurringRuleId: rule.id,
+        });
+      } else if (rule.type === 'credit_card_item' && rule.creditCardId) {
+        // Para cartão: calcular o mês da fatura (mês da data + 1)
+        const invoiceMonth = nextDate.getMonth() + 2 > 12 ? 1 : nextDate.getMonth() + 2;
+        const invoiceYear = nextDate.getMonth() + 2 > 12 ? nextDate.getFullYear() + 1 : nextDate.getFullYear();
+        const invoice = await getOrCreateInvoice(userId, rule.creditCardId, invoiceMonth, invoiceYear);
+        await db.insert(creditCardItems).values({
+          userId,
+          invoiceId: invoice.id,
+          creditCardId: rule.creditCardId,
+          description: rule.description,
+          amount: rule.amount,
+          parentCategory: (rule.parentCategory as any) || 'outros',
+          subcategoryId: rule.subcategoryId ?? undefined,
+          purchaseDate: dateStr as unknown as Date,
+          installments: 1,
+          currentInstallment: 1,
+          totalInstallments: 1,
+          notes: rule.notes ? `${rule.notes} [Recorrente]` : '[Recorrente]',
+          isRecurring: 1,
+          recurringRuleId: rule.id,
+        });
+        // Atualizar total da fatura
+        const items = await db.select().from(creditCardItems).where(eq(creditCardItems.invoiceId, invoice.id));
+        const total = items.reduce((sum, i) => sum + parseFloat(String(i.amount)), 0);
+        await db.update(creditCardInvoices).set({ totalAmount: String(total) as unknown as any }).where(eq(creditCardInvoices.id, invoice.id));
+      }
+
+      generated++;
+
+      // Atualizar lastGeneratedDate
+      await db.update(recurringRules)
+        .set({ lastGeneratedDate: dateStr as unknown as Date })
+        .where(eq(recurringRules.id, rule.id));
+
+      // Avançar para o próximo período
+      if (rule.frequency === 'monthly') {
+        nextDate.setMonth(nextDate.getMonth() + 1);
+      } else if (rule.frequency === 'weekly') {
+        nextDate.setDate(nextDate.getDate() + 7);
+      } else if (rule.frequency === 'yearly') {
+        nextDate.setFullYear(nextDate.getFullYear() + 1);
+      }
+    }
+
+    results.push({ ruleId: rule.id, generated });
+  }
+
+  return results;
 }

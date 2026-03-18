@@ -20,6 +20,7 @@ import FamilyMembers from "./pages/FamilyMembers";
 import FuelHistory from "./pages/FuelHistory";
 import ExpenseGroups from "./pages/ExpenseGroups";
 import BankAccounts from "./pages/BankAccounts";
+import Recurring from "./pages/Recurring";
 
 function AppRoutes() {
   return (
@@ -42,6 +43,7 @@ function AppRoutes() {
         <Route path="/relatorios" component={Reports} />
         <Route path="/familia" component={FamilyMembers} />
         <Route path="/contas-bancarias" component={BankAccounts} />
+        <Route path="/recorrencias" component={Recurring} />
           <Route path="/404" component={NotFound} />
           <Route component={NotFound} />
         </Switch>

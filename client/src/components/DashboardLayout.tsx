@@ -33,6 +33,7 @@ import {
   PanelLeft,
   PiggyBank,
   Receipt,
+  Repeat,
   ShoppingCart,
   Target,
   TrendingDown,
@@ -60,6 +61,7 @@ const menuGroups = [
       { icon: TrendingDown, label: "Despesas", path: "/despesas" },
       { icon: Receipt, label: "Contas a Pagar", path: "/contas" },
       { icon: CreditCard, label: "Cartões", path: "/cartoes" },
+      { icon: Repeat, label: "Recorrências", path: "/recorrencias" },
     ],
   },
   {

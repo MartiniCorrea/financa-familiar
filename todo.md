@@ -257,3 +257,20 @@
 - [x] Despesas clicáveis: painel lateral (Sheet) com detalhes, observações editáveis, botões de editar e excluir
 - [x] Receitas clicáveis: painel lateral (Sheet) com detalhes, observações editáveis, botões de editar e excluir
 - [x] Transferências entre contas: botão "Transferir" em Contas Bancárias, sem impactar receitas/despesas
+
+## Melhorias v30
+- [x] Filtro por conta bancária nas telas de Despesas e Receitas
+- [x] Filtro por intervalo de datas nas telas de Despesas e Receitas (período personalizado)
+  - [x] Despesas/receitas recorrentes: criação automática mensal, edição em cascata, cancelamento
+  - [x] Recorrência no cartão de crédito: lançamento automático nas faturas futuras com opção de cancelar
+
+## Módulo v31 — Recorrências
+- [x] Schema: tabela recurring_rules (type, description, amount, frequency, startDate, endDate, isActive, lastGeneratedDate)
+- [x] DB: funções getRecurringRules, createRecurringRule, cancelRecurringRule, deleteRecurringRule, generatePendingRecurringEntries
+- [x] Router: recurring (list, create, cancel, delete, generatePending)
+- [x] Formulário de Despesas: checkbox "Despesa recorrente" com frequência e data de encerramento
+- [x] Formulário de Receitas: checkbox "Receita recorrente" com frequência e data de encerramento
+- [x] Formulário de Cartão de Crédito: checkbox "Gasto recorrente" com frequência e data de encerramento
+- [x] Badge visual "Recorrente" nas listas de Despesas e Receitas
+- [x] Página /recorrencias: listagem de regras ativas e pausadas, botão para gerar pendentes
+- [x] Menu lateral: item "Recorrências" com ícone Repeat

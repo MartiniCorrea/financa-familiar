@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE incomes ADD COLUMN recurringRuleId INT;\nALTER TABLE expenses ADD COLUMN recurringRuleId INT;\nALTER TABLE credit_card_items ADD COLUMN recurringRuleId INT;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2kFLXQuFv4V4Y4E.cb116c6777a1 --database S72dXysLKGdD9WHAuQpZuU --execute ALTER TABLE incomes ADD COLUMN recurringRuleId INT;\nALTER TABLE expenses ADD COLUMN recurringRuleId INT;\nALTER TABLE credit_card_items ADD COLUMN recurringRuleId INT;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1682
+}
