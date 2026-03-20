@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE `account_transfers` ADD COLUMN IF NOT EXISTS `fromExpenseId` int; ALTER TABLE `account_transfers` ADD COLUMN IF NOT EXISTS `toIncomeId` int;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway03.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 2kFLXQuFv4V4Y4E.cb116c6777a1 --database S72dXysLKGdD9WHAuQpZuU --execute ALTER TABLE `account_transfers` ADD COLUMN IF NOT EXISTS `fromExpenseId` int; ALTER TABLE `account_transfers` ADD COLUMN IF NOT EXISTS `toIncomeId` int;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2039
+}

@@ -441,6 +441,8 @@ export const accountTransfers = mysqlTable("account_transfers", {
   date: date("date").notNull(),
   description: varchar("description", { length: 255 }),
   notes: text("notes"),
+  fromExpenseId: int("fromExpenseId"), // despesa gerada na conta de origem
+  toIncomeId: int("toIncomeId"),       // receita gerada na conta de destino
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 export type AccountTransfer = typeof accountTransfers.$inferSelect;

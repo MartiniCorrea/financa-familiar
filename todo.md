@@ -264,6 +264,9 @@
   - [x] Despesas/receitas recorrentes: criação automática mensal, edição em cascata, cancelamento
   - [x] Recorrência no cartão de crédito: lançamento automático nas faturas futuras com opção de cancelar
 
+## Correções v32
+- [x] Bug: transferência entre contas não atualiza os saldos das contas de origem e destino
+
 ## Módulo v31 — Recorrências
 - [x] Schema: tabela recurring_rules (type, description, amount, frequency, startDate, endDate, isActive, lastGeneratedDate)
 - [x] DB: funções getRecurringRules, createRecurringRule, cancelRecurringRule, deleteRecurringRule, generatePendingRecurringEntries

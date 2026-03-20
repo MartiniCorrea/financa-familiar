@@ -1126,13 +1126,56 @@ export async function createAccountTransfer(userId: number, data: Omit<InsertAcc
   const to = await db.select().from(bankAccounts).where(and(eq(bankAccounts.id, data.toAccountId), eq(bankAccounts.userId, userId))).limit(1);
   if (from.length === 0 || to.length === 0) throw new Error("Conta não encontrada");
   if (data.fromAccountId === data.toAccountId) throw new Error("Contas de origem e destino devem ser diferentes");
-  const result = await db.insert(accountTransfers).values({ ...data, userId });
+
+  const desc = data.description || `Transferência entre contas`;
+  const transferDate = data.date;
+
+  // Cria despesa na conta de origem (debita)
+  const expenseResult = await db.insert(expenses).values({
+    userId,
+    description: desc,
+    amount: data.amount as any,
+    parentCategory: 'financeiro',
+    date: transferDate,
+    bankAccountId: data.fromAccountId,
+    paymentMethod: 'transferencia',
+    notes: data.notes || null,
+    sourceType: 'normal',
+  } as any);
+  const fromExpenseId = (expenseResult as any).insertId;
+
+  // Cria receita na conta de destino (credita)
+  const incomeResult = await db.insert(incomes).values({
+    userId,
+    description: desc,
+    amount: data.amount as any,
+    category: 'outros',
+    date: transferDate,
+    bankAccountId: data.toAccountId,
+    notes: data.notes || null,
+  } as any);
+  const toIncomeId = (incomeResult as any).insertId;
+
+  // Registra a transferência com referência aos lançamentos gerados
+  const result = await db.insert(accountTransfers).values({ ...data, userId, fromExpenseId, toIncomeId } as any);
   return { id: (result as any).insertId };
 }
 
 export async function deleteAccountTransfer(id: number, userId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
+  // Busca a transferência para obter os IDs dos lançamentos gerados
+  const [transfer] = await db.select().from(accountTransfers)
+    .where(and(eq(accountTransfers.id, id), eq(accountTransfers.userId, userId))).limit(1);
+  if (!transfer) throw new Error("Transferência não encontrada");
+  // Remove despesa gerada na conta de origem
+  if ((transfer as any).fromExpenseId) {
+    await db.delete(expenses).where(and(eq(expenses.id, (transfer as any).fromExpenseId), eq(expenses.userId, userId)));
+  }
+  // Remove receita gerada na conta de destino
+  if ((transfer as any).toIncomeId) {
+    await db.delete(incomes).where(and(eq(incomes.id, (transfer as any).toIncomeId), eq(incomes.userId, userId)));
+  }
   return db.delete(accountTransfers).where(and(eq(accountTransfers.id, id), eq(accountTransfers.userId, userId)));
 }
 
