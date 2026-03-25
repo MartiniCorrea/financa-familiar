@@ -1121,67 +1121,66 @@ export async function listAccountTransfers(userId: number) {
 export async function createAccountTransfer(userId: number, data: Omit<InsertAccountTransfer, 'userId'>) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Validate accounts belong to user
-  const from = await db.select().from(bankAccounts).where(and(eq(bankAccounts.id, data.fromAccountId), eq(bankAccounts.userId, userId))).limit(1);
-  const to = await db.select().from(bankAccounts).where(and(eq(bankAccounts.id, data.toAccountId), eq(bankAccounts.userId, userId))).limit(1);
-  if (from.length === 0 || to.length === 0) throw new Error("Conta não encontrada");
+
+  // Valida que as contas pertencem ao usuário
+  const [fromAccount] = await db.select().from(bankAccounts)
+    .where(and(eq(bankAccounts.id, data.fromAccountId), eq(bankAccounts.userId, userId))).limit(1);
+  const [toAccount] = await db.select().from(bankAccounts)
+    .where(and(eq(bankAccounts.id, data.toAccountId), eq(bankAccounts.userId, userId))).limit(1);
+  if (!fromAccount || !toAccount) throw new Error("Conta não encontrada");
   if (data.fromAccountId === data.toAccountId) throw new Error("Contas de origem e destino devem ser diferentes");
 
-  const desc = data.description || `Transferência entre contas`;
-  const transferDate = data.date;
+  const amount = parseFloat(String(data.amount));
 
-  const now = new Date();
+  // Ajusta o initialBalance diretamente: debita da origem, credita no destino
+  // Isso garante que a transferência não aparecerá como despesa ou receita
+  const fromBalance = parseFloat(String(fromAccount.initialBalance || '0'));
+  const toBalance = parseFloat(String(toAccount.initialBalance || '0'));
 
-  // Cria despesa na conta de origem (debita)
-  const expenseResult = await db.insert(expenses).values({
-    userId,
-    description: desc,
-    amount: data.amount as any,
-    parentCategory: 'financeiro',
-    date: transferDate,
-    bankAccountId: data.fromAccountId,
-    paymentMethod: 'transferencia',
-    notes: data.notes || null,
-    sourceType: 'normal',
-    createdAt: now,
-    updatedAt: now,
-  } as any);
-  const fromExpenseId = (expenseResult as any).insertId;
+  await db.update(bankAccounts)
+    .set({ initialBalance: String(fromBalance - amount) } as any)
+    .where(eq(bankAccounts.id, data.fromAccountId));
 
-  // Cria receita na conta de destino (credita)
-  const incomeResult = await db.insert(incomes).values({
-    userId,
-    description: desc,
-    amount: data.amount as any,
-    category: 'outros',
-    date: transferDate,
-    bankAccountId: data.toAccountId,
-    notes: data.notes || null,
-    createdAt: now,
-    updatedAt: now,
-  } as any);
-  const toIncomeId = (incomeResult as any).insertId;
+  await db.update(bankAccounts)
+    .set({ initialBalance: String(toBalance + amount) } as any)
+    .where(eq(bankAccounts.id, data.toAccountId));
 
-  // Registra a transferência com referência aos lançamentos gerados
-  const result = await db.insert(accountTransfers).values({ ...data, userId, fromExpenseId, toIncomeId } as any);
+  // Registra a transferência para histórico (sem vínculos a despesa/receita)
+  const result = await db.insert(accountTransfers).values({ ...data, userId } as any);
   return { id: (result as any).insertId };
 }
 
 export async function deleteAccountTransfer(id: number, userId: number) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  // Busca a transferência para obter os IDs dos lançamentos gerados
+
+  // Busca a transferência
   const [transfer] = await db.select().from(accountTransfers)
     .where(and(eq(accountTransfers.id, id), eq(accountTransfers.userId, userId))).limit(1);
   if (!transfer) throw new Error("Transferência não encontrada");
-  // Remove despesa gerada na conta de origem
-  if ((transfer as any).fromExpenseId) {
-    await db.delete(expenses).where(and(eq(expenses.id, (transfer as any).fromExpenseId), eq(expenses.userId, userId)));
+
+  const amount = parseFloat(String(transfer.amount));
+
+  // Busca os saldos atuais das contas
+  const [fromAccount] = await db.select().from(bankAccounts)
+    .where(and(eq(bankAccounts.id, transfer.fromAccountId), eq(bankAccounts.userId, userId))).limit(1);
+  const [toAccount] = await db.select().from(bankAccounts)
+    .where(and(eq(bankAccounts.id, transfer.toAccountId), eq(bankAccounts.userId, userId))).limit(1);
+
+  // Reverte o ajuste de initialBalance: devolve à origem, remove do destino
+  if (fromAccount) {
+    const fromBalance = parseFloat(String(fromAccount.initialBalance || '0'));
+    await db.update(bankAccounts)
+      .set({ initialBalance: String(fromBalance + amount) } as any)
+      .where(eq(bankAccounts.id, transfer.fromAccountId));
   }
-  // Remove receita gerada na conta de destino
-  if ((transfer as any).toIncomeId) {
-    await db.delete(incomes).where(and(eq(incomes.id, (transfer as any).toIncomeId), eq(incomes.userId, userId)));
+  if (toAccount) {
+    const toBalance = parseFloat(String(toAccount.initialBalance || '0'));
+    await db.update(bankAccounts)
+      .set({ initialBalance: String(toBalance - amount) } as any)
+      .where(eq(bankAccounts.id, transfer.toAccountId));
   }
+
   return db.delete(accountTransfers).where(and(eq(accountTransfers.id, id), eq(accountTransfers.userId, userId)));
 }
 
