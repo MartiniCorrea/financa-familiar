@@ -1130,6 +1130,8 @@ export async function createAccountTransfer(userId: number, data: Omit<InsertAcc
   const desc = data.description || `Transferência entre contas`;
   const transferDate = data.date;
 
+  const now = new Date();
+
   // Cria despesa na conta de origem (debita)
   const expenseResult = await db.insert(expenses).values({
     userId,
@@ -1141,6 +1143,8 @@ export async function createAccountTransfer(userId: number, data: Omit<InsertAcc
     paymentMethod: 'transferencia',
     notes: data.notes || null,
     sourceType: 'normal',
+    createdAt: now,
+    updatedAt: now,
   } as any);
   const fromExpenseId = (expenseResult as any).insertId;
 
@@ -1153,6 +1157,8 @@ export async function createAccountTransfer(userId: number, data: Omit<InsertAcc
     date: transferDate,
     bankAccountId: data.toAccountId,
     notes: data.notes || null,
+    createdAt: now,
+    updatedAt: now,
   } as any);
   const toIncomeId = (incomeResult as any).insertId;
 
