@@ -478,3 +478,14 @@ export const recurringRules = mysqlTable("recurring_rules", {
 });
 export type RecurringRule = typeof recurringRules.$inferSelect;
 export type InsertRecurringRule = typeof recurringRules.$inferInsert;
+
+// ─── Bill Notifications (controle de notificações de vencimento já enviadas) ──
+export const billNotifications = mysqlTable("bill_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  billId: int("billId").notNull(),
+  daysBeforeDue: int("daysBeforeDue").notNull(), // 0=hoje, 1=amanhã, 3=3 dias, 7=7 dias
+  sentAt: timestamp("sentAt").defaultNow().notNull(),
+});
+export type BillNotification = typeof billNotifications.$inferSelect;
+export type InsertBillNotification = typeof billNotifications.$inferInsert;

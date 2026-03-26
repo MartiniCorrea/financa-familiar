@@ -277,3 +277,12 @@
 - [x] Badge visual "Recorrente" nas listas de Despesas e Receitas
 - [x] Página /recorrencias: listagem de regras ativas e pausadas, botão para gerar pendentes
 - [x] Menu lateral: item "Recorrências" com ícone Repeat
+
+## Módulo v33 — Notificações de Vencimento
+- [x] Schema: tabela bill_notifications (userId, billId, daysBeforeDue, sentAt)
+- [x] DB: getBillsDueForNotification (busca contas pendentes nos próximos 7 dias sem notificação enviada hoje)
+- [x] DB: markBillNotificationSent (registra notificação para evitar duplicatas)
+- [x] Router: billAlerts.checkAndNotify (envia push ao dono do app via notifyOwner)
+- [x] Router: billAlerts.getUpcoming (retorna lista para exibir no dashboard)
+- [x] Frontend: BillDueChecker no App.tsx (dispara uma vez por sessão ao logar)
+- [x] Dashboard: painel "Alertas de Vencimento" com código de cores (vermelho=hoje, laranja≤3d, âmbar≤7d)

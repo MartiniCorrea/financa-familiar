@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, ChevronRight, ArrowUpRight, ArrowDownRight, Layers, Pencil } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, PiggyBank, AlertCircle, ChevronRight, ArrowUpRight, ArrowDownRight, Layers, Pencil, Bell, BellRing } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useLocation } from "wouter";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
@@ -30,6 +30,7 @@ export default function Dashboard() {
   const { data: initialBalance, refetch: refetchInitialBalance } = trpc.balance.get.useQuery();
   const { data: totalBalance, refetch: refetchTotalBalance } = trpc.balance.getTotal.useQuery();
   const { data: bankAccountsWithBalance } = trpc.bankAccounts.listWithBalance.useQuery();
+  const { data: upcomingAlerts } = trpc.billAlerts.getUpcoming.useQuery();
 
   const utils = trpc.useUtils();
   const setBalanceMutation = trpc.balance.set.useMutation({
@@ -348,6 +349,52 @@ export default function Dashboard() {
                 </div>
               );
             })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Alertas de Vencimento Próximo */}
+      {upcomingAlerts && upcomingAlerts.length > 0 && (
+        <Card className="border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <CardTitle className="text-base font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-2">
+              <BellRing className="w-4 h-4 text-amber-500 animate-pulse" />
+              Alertas de Vencimento
+              <Badge className="bg-amber-500 text-white text-xs ml-1">{upcomingAlerts.length}</Badge>
+            </CardTitle>
+            <Button variant="ghost" size="sm" className="text-amber-700 dark:text-amber-400 text-xs" onClick={() => setLocation('/contas')}>
+              Gerenciar <ChevronRight className="w-3 h-3 ml-1" />
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {upcomingAlerts.map(({ bill, daysBeforeDue }: any) => {
+                const isToday = daysBeforeDue === 0;
+                const isTomorrow = daysBeforeDue === 1;
+                const urgencyLabel = isToday ? 'HOJE' : isTomorrow ? 'Amanhã' : `${daysBeforeDue} dias`;
+                const rowColor = isToday
+                  ? 'bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700'
+                  : daysBeforeDue <= 3
+                  ? 'bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700'
+                  : 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800';
+                const badgeColor = isToday ? 'bg-red-500' : daysBeforeDue <= 3 ? 'bg-orange-500' : 'bg-amber-500';
+                return (
+                  <div key={bill.id} className={`flex items-center justify-between p-3 rounded-lg ${rowColor} transition-colors`}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Bell className={`w-4 h-4 shrink-0 ${isToday ? 'text-red-500' : daysBeforeDue <= 3 ? 'text-orange-500' : 'text-amber-500'}`} />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{bill.description}</p>
+                        <p className="text-xs text-muted-foreground">Vence em {formatDate(bill.dueDate as string)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <Badge className={`${badgeColor} text-white text-xs`}>{urgencyLabel}</Badge>
+                      <span className="text-sm font-semibold text-foreground">{formatCurrency(bill.amount)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       )}

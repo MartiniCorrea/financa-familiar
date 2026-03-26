@@ -9,7 +9,8 @@ import {
   InsertShoppingList, InsertSupermarket, InsertUser, Investment,
   InvestmentTransaction, PriceHistory, ShoppingItem, ShoppingList, Supermarket,
   AccountTransfer, InsertAccountTransfer, RecurringRule, InsertRecurringRule,
-  accountTransfers, recurringRules,
+  BillNotification, InsertBillNotification,
+  accountTransfers, recurringRules, billNotifications,
   bankAccounts, bills, budgets, creditCardInvoices, creditCardItems, creditCards, expenseCategories, expenses, familyMembers,
   financialGoals, goalContributions, incomes, investmentTransactions,
   investments, priceHistory, shoppingItems, shoppingLists, supermarkets, users,
@@ -1334,4 +1335,69 @@ export async function generatePendingRecurringEntries(userId: number) {
   }
 
   return results;
+}
+
+// ─── Bill Due Notifications ───────────────────────────────────────────────────
+
+/**
+ * Retorna contas pendentes que vencem nos próximos `days` dias (inclusive hoje e vencidas).
+ * Exclui contas já pagas, canceladas ou com notificação já enviada para esse intervalo.
+ */
+export async function getBillsDueForNotification(userId: number, daysAhead: number): Promise<{ bill: typeof bills.$inferSelect; daysBeforeDue: number }[]> {
+  const db = await getDb();
+  if (!db) return [];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const limit = new Date(today);
+  limit.setDate(limit.getDate() + daysAhead);
+
+  const todayStr = today.toISOString().split('T')[0];
+  const limitStr = limit.toISOString().split('T')[0];
+
+  // Busca contas pendentes dentro do intervalo
+  const pendingBills = await db.select().from(bills)
+    .where(and(
+      eq(bills.userId, userId),
+      eq(bills.status, 'pendente'),
+      sql`${bills.dueDate} >= ${todayStr}`,
+      sql`${bills.dueDate} <= ${limitStr}`,
+    ))
+    .orderBy(asc(bills.dueDate));
+
+  // Filtra as que já tiveram notificação enviada hoje
+  const results: { bill: typeof bills.$inferSelect; daysBeforeDue: number }[] = [];
+  for (const bill of pendingBills) {
+    const dueDate = new Date(bill.dueDate as unknown as string);
+    dueDate.setHours(0, 0, 0, 0);
+    const daysBeforeDue = Math.round((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Verifica se já foi enviada notificação para este bill+daysBeforeDue hoje
+    const todayStart = new Date(today);
+    const todayEnd = new Date(today);
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const existing = await db.select().from(billNotifications)
+      .where(and(
+        eq(billNotifications.userId, userId),
+        eq(billNotifications.billId, bill.id),
+        eq(billNotifications.daysBeforeDue, daysBeforeDue),
+        sql`${billNotifications.sentAt} >= ${todayStart.toISOString().replace('T', ' ').split('.')[0]}`,
+        sql`${billNotifications.sentAt} <= ${todayEnd.toISOString().replace('T', ' ').split('.')[0]}`,
+      )).limit(1);
+
+    if (existing.length === 0) {
+      results.push({ bill, daysBeforeDue });
+    }
+  }
+  return results;
+}
+
+/**
+ * Registra que uma notificação foi enviada para evitar duplicatas.
+ */
+export async function markBillNotificationSent(userId: number, billId: number, daysBeforeDue: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(billNotifications).values({ userId, billId, daysBeforeDue });
 }

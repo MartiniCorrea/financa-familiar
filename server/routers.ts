@@ -2,6 +2,7 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { notifyOwner } from "./_core/notification";
 import { z } from "zod";
 import * as db from "./db";
 
@@ -529,6 +530,46 @@ const recurringRouter = router({
   delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteRecurringRule(input.id, ctx.user.id)),
   generatePending: protectedProcedure.mutation(({ ctx }) => db.generatePendingRecurringEntries(ctx.user.id)),
 });
+// ─── Bill Alerts Router ─────────────────────────────────────────────────────
+const billAlertsRouter = router({
+  /**
+   * Verifica contas pendentes que vencem em até 7 dias e envia notificação
+   * ao dono do projeto. Retorna a lista de contas alertadas.
+   * Deve ser chamado uma vez por dia (ex: ao abrir o app).
+   */
+  checkAndNotify: protectedProcedure.mutation(async ({ ctx }) => {
+    const dueBills = await db.getBillsDueForNotification(ctx.user.id, 7);
+    if (dueBills.length === 0) return { notified: 0, bills: [] };
+
+    const lines = dueBills.map(({ bill, daysBeforeDue }) => {
+      const label = daysBeforeDue === 0 ? 'vence HOJE' :
+        daysBeforeDue === 1 ? 'vence amanhã' :
+        `vence em ${daysBeforeDue} dias`;
+      const amount = parseFloat(String(bill.amount)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+      return `• ${bill.description} — ${amount} (${label})`;
+    });
+
+    await notifyOwner({
+      title: `⚠️ ${dueBills.length} conta(s) a pagar próxima(s) do vencimento`,
+      content: `As seguintes contas estão próximas do vencimento:\n\n${lines.join('\n')}\n\nAcesse o FinançaFamiliar para mais detalhes.`,
+    });
+
+    // Registra as notificações enviadas para evitar duplicatas
+    for (const { bill, daysBeforeDue } of dueBills) {
+      await db.markBillNotificationSent(ctx.user.id, bill.id, daysBeforeDue);
+    }
+
+    return { notified: dueBills.length, bills: dueBills.map(({ bill, daysBeforeDue }) => ({ id: bill.id, description: bill.description, dueDate: bill.dueDate, amount: bill.amount, daysBeforeDue })) };
+  }),
+
+  /**
+   * Retorna contas pendentes que vencem em até 7 dias (para exibir no dashboard).
+   */
+  getUpcoming: protectedProcedure.query(async ({ ctx }) => {
+    return db.getBillsDueForNotification(ctx.user.id, 7);
+  }),
+});
+
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -557,7 +598,7 @@ export const appRouter = router({
   bankAccounts: bankAccountsRouter,
   accountTransfers: accountTransfersRouter,
   creditCardInvoices: creditCardInvoicesRouter,
-  recurring: recurringRouter,
+   recurring: recurringRouter,
+  billAlerts: billAlertsRouter,
 });
-
 export type AppRouter = typeof appRouter;
