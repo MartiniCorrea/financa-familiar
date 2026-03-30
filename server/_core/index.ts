@@ -5,6 +5,8 @@ import net from "net";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerLocalAuthRoutes } from "../localAuth";
+import { generateMonthlyReport } from "../pdfReport";
+import { sdk } from "./sdk";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
@@ -38,6 +40,26 @@ async function startServer() {
   registerOAuthRoutes(app);
   // Local email/password auth routes
   registerLocalAuthRoutes(app);
+
+  // PDF Report download route
+  app.get("/api/reports/pdf", async (req, res) => {
+    try {
+      const user = await sdk.authenticateRequest(req);
+      if (!user) return res.status(401).json({ error: "Não autenticado" });
+      const month = parseInt(String(req.query.month)) || new Date().getMonth() + 1;
+      const year = parseInt(String(req.query.year)) || new Date().getFullYear();
+      const sections = {
+        summary: req.query.summary !== "false",
+        expenses: req.query.expenses !== "false",
+        incomes: req.query.incomes !== "false",
+        bills: req.query.bills !== "false",
+      };
+      await generateMonthlyReport(res, user.id, month, year, sections);
+    } catch (err: any) {
+      if (!res.headersSent) res.status(500).json({ error: err.message || "Erro ao gerar PDF" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

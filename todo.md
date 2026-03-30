@@ -286,3 +286,12 @@
 - [x] Router: billAlerts.getUpcoming (retorna lista para exibir no dashboard)
 - [x] Frontend: BillDueChecker no App.tsx (dispara uma vez por sessão ao logar)
 - [x] Dashboard: painel "Alertas de Vencimento" com código de cores (vermelho=hoje, laranja≤3d, âmbar≤7d)
+
+## Módulo v34 — Exportação de Relatórios em PDF
+- [x] Backend: server/pdfReport.ts com geração de PDF usando PDFKit
+- [x] Backend: rota HTTP GET /api/reports/pdf com autenticação por cookie
+- [x] Backend: PDF com resumo mensal (receitas, despesas, saldo, categorias)
+- [x] Backend: PDF com lista de despesas, receitas e contas a pagar do período
+- [x] Frontend: botão "Exportar PDF" na página de Relatórios
+- [x] Frontend: modal de seleção (período, seções a incluir)
+- [x] Frontend: download automático do arquivo PDF gerado

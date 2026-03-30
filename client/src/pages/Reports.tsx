@@ -3,11 +3,16 @@ import { formatCurrency, getCurrentMonth, getCurrentYear, getMonthName } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { BarChart3, FileDown, Loader2 } from "lucide-react";
 import { useState, useMemo } from "react";
+import { toast } from "sonner";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, AreaChart, Area, LineChart, Line,
+  PieChart, Pie, Cell, Legend, AreaChart, Area,
 } from "recharts";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: getMonthName(i + 1) }));
@@ -24,14 +29,24 @@ export default function Reports() {
   const [year, setYear] = useState(getCurrentYear());
   const [tab, setTab] = useState('overview');
 
+  // PDF Export state
+  const [showPdfModal, setShowPdfModal] = useState(false);
+  const [pdfMonth, setPdfMonth] = useState(getCurrentMonth());
+  const [pdfYear, setPdfYear] = useState(getCurrentYear());
+  const [pdfSections, setPdfSections] = useState({
+    summary: true,
+    expenses: true,
+    incomes: true,
+    bills: true,
+  });
+  const [isGenerating, setIsGenerating] = useState(false);
+
   const { data: summary } = trpc.dashboard.summary.useQuery({ month, year });
   const { data: evolution } = trpc.dashboard.evolution.useQuery({ months: 12 });
   const { data: groupSummary } = trpc.expenseGroups.summary.useQuery({ month, year });
 
-  // Dados do gráfico de pizza usando subcategorias 50/30/20 do usuário
   const pieData = useMemo(() => {
     if (!groupSummary?.length) return [];
-    // Tenta mostrar por subcategoria primeiro
     const bySub: { name: string; value: number; color: string }[] = [];
     for (const group of groupSummary) {
       for (const sub of (group.subcategories ?? [])) {
@@ -41,25 +56,11 @@ export default function Reports() {
       }
     }
     if (bySub.length > 0) return bySub.sort((a, b) => b.value - a.value);
-    // Fallback: por grupo
     return groupSummary
       .filter(g => g.spent > 0)
       .map(g => ({ name: g.name, value: g.spent, color: g.color || '#6366f1' }))
       .sort((a, b) => b.value - a.value);
   }, [groupSummary]);
-
-  // Dados de receitas por fonte
-  const incomeSourceData = useMemo(() => {
-    if (!summary?.totalIncome) return [];
-    return [
-      { name: 'Receita Total', value: summary.totalIncome, color: '#22c55e' },
-    ];
-  }, [summary]);
-
-  const incomeData = useMemo(() => {
-    // Use evolution data for income breakdown
-    return [];
-  }, [summary]);
 
   const evolutionData = useMemo(() => {
     if (!evolution) return [];
@@ -69,25 +70,153 @@ export default function Reports() {
     }));
   }, [evolution]);
 
+  const handleExportPdf = async () => {
+    setIsGenerating(true);
+    try {
+      const params = new URLSearchParams({
+        month: String(pdfMonth),
+        year: String(pdfYear),
+        summary: String(pdfSections.summary),
+        expenses: String(pdfSections.expenses),
+        incomes: String(pdfSections.incomes),
+        bills: String(pdfSections.bills),
+      });
+      const response = await fetch(`/api/reports/pdf?${params}`, { credentials: "include" });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || "Erro ao gerar PDF");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `relatorio-${pdfYear}-${String(pdfMonth).padStart(2, "0")}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      setShowPdfModal(false);
+      toast.success("Relatório PDF gerado com sucesso!");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar PDF");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const monthLabel = (m: number) => {
+    const name = getMonthName(m);
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  };
+
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>Relatórios</h1>
           <p className="text-muted-foreground text-sm mt-1">Análises e visualizações financeiras detalhadas</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Select value={String(month)} onValueChange={v => setMonth(Number(v))}>
             <SelectTrigger className="w-36 bg-card border-border"><SelectValue /></SelectTrigger>
-            <SelectContent>{MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{m.label.charAt(0).toUpperCase() + m.label.slice(1)}</SelectItem>)}</SelectContent>
+            <SelectContent>{MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{monthLabel(m.value)}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
             <SelectTrigger className="w-24 bg-card border-border"><SelectValue /></SelectTrigger>
             <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
           </Select>
+          <Button
+            onClick={() => setShowPdfModal(true)}
+            className="flex items-center gap-2 rounded-xl shadow-sm bg-primary hover:bg-primary/90"
+          >
+            <FileDown className="w-4 h-4" />
+            Exportar PDF
+          </Button>
         </div>
       </div>
 
+      {/* PDF Export Modal */}
+      <Dialog open={showPdfModal} onOpenChange={setShowPdfModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileDown className="w-5 h-5 text-primary" />
+              Exportar Relatório em PDF
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-5 py-2">
+            {/* Período */}
+            <div>
+              <p className="text-sm font-semibold text-foreground mb-2">Período do relatório</p>
+              <div className="flex items-center gap-2">
+                <Select value={String(pdfMonth)} onValueChange={v => setPdfMonth(Number(v))}>
+                  <SelectTrigger className="flex-1 bg-card border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>{MONTHS.map(m => <SelectItem key={m.value} value={String(m.value)}>{monthLabel(m.value)}</SelectItem>)}</SelectContent>
+                </Select>
+                <Select value={String(pdfYear)} onValueChange={v => setPdfYear(Number(v))}>
+                  <SelectTrigger className="w-28 bg-card border-border"><SelectValue /></SelectTrigger>
+                  <SelectContent>{YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Seções */}
+            <div>
+              <p className="text-sm font-semibold text-foreground mb-3">Seções a incluir</p>
+              <div className="space-y-3">
+                {[
+                  { key: "summary", label: "Resumo mensal", desc: "KPIs, saldo e despesas por categoria" },
+                  { key: "incomes", label: "Lista de receitas", desc: "Todas as receitas do período" },
+                  { key: "expenses", label: "Lista de despesas", desc: "Todas as despesas do período" },
+                  { key: "bills", label: "Contas a pagar/receber", desc: "Contas do período com status" },
+                ].map(({ key, label, desc }) => (
+                  <div key={key} className="flex items-start gap-3 p-3 rounded-xl bg-accent/30 hover:bg-accent/50 transition-colors cursor-pointer"
+                    onClick={() => setPdfSections(s => ({ ...s, [key]: !s[key as keyof typeof s] }))}>
+                    <Checkbox
+                      id={`pdf-${key}`}
+                      checked={pdfSections[key as keyof typeof pdfSections]}
+                      onCheckedChange={v => setPdfSections(s => ({ ...s, [key]: !!v }))}
+                      className="mt-0.5"
+                    />
+                    <div>
+                      <Label htmlFor={`pdf-${key}`} className="text-sm font-medium text-foreground cursor-pointer">{label}</Label>
+                      <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Preview info */}
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-3">
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                O PDF será gerado com o relatório de <strong>{monthLabel(pdfMonth)} {pdfYear}</strong> e baixado automaticamente.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setShowPdfModal(false)} disabled={isGenerating}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleExportPdf}
+              disabled={isGenerating || !Object.values(pdfSections).some(Boolean)}
+              className="flex items-center gap-2 rounded-xl"
+            >
+              {isGenerating ? (
+                <><Loader2 className="w-4 h-4 animate-spin" /> Gerando...</>
+              ) : (
+                <><FileDown className="w-4 h-4" /> Baixar PDF</>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="bg-card border border-border">
           <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Visão Geral</TabsTrigger>
@@ -123,7 +252,8 @@ export default function Reports() {
                 ) : (
                   <ResponsiveContainer width="100%" height={240}>
                     <PieChart>
-                      <Pie data={pieData} cx="50%" cy="50%" outerRadius={85} paddingAngle={2} dataKey="value" label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
+                      <Pie data={pieData} cx="50%" cy="50%" outerRadius={85} paddingAngle={2} dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`} labelLine={false}>
                         {pieData.map((entry: any, index: number) => <Cell key={index} fill={entry.color} />)}
                       </Pie>
                       <Tooltip {...tooltipStyle} formatter={(v: number) => [formatCurrency(v), '']} />
@@ -135,22 +265,23 @@ export default function Reports() {
 
             <Card className="bg-card border-border">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-foreground">Receitas por Categoria</CardTitle>
+                <CardTitle className="text-sm font-semibold text-foreground">Taxa de Poupança</CardTitle>
               </CardHeader>
               <CardContent>
-                {incomeData.length === 0 ? (
-                  <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">Sem dados</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={240}>
-                    <BarChart data={incomeData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.25 0.03 265)" horizontal={false} />
-                      <XAxis type="number" tick={{ fill: 'oklch(0.60 0.02 265)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `R$${(v/1000).toFixed(0)}k`} />
-                      <YAxis type="category" dataKey="name" tick={{ fill: 'oklch(0.60 0.02 265)', fontSize: 11 }} axisLine={false} tickLine={false} width={80} />
-                      <Tooltip {...tooltipStyle} formatter={(v: number) => [formatCurrency(v), '']} />
-                      <Bar dataKey="value" fill="#22c55e" radius={[0, 4, 4, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+                <div className="flex flex-col items-center justify-center h-48 gap-3">
+                  <div className="relative w-32 h-32">
+                    <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="oklch(0.25 0.03 265)" strokeWidth="10" />
+                      <circle cx="50" cy="50" r="40" fill="none" stroke="#6366f1" strokeWidth="10"
+                        strokeDasharray={`${2 * Math.PI * 40 * Math.min(summary?.savingsRate ?? 0, 100) / 100} ${2 * Math.PI * 40}`}
+                        strokeLinecap="round" />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-2xl font-bold text-primary">{(summary?.savingsRate ?? 0).toFixed(0)}%</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground">da renda foi poupada</p>
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -181,7 +312,6 @@ export default function Reports() {
             </CardContent>
           </Card>
 
-          {/* Category breakdown table */}
           {pieData.length > 0 && (
             <Card className="bg-card border-border">
               <CardHeader className="pb-2">
