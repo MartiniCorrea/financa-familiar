@@ -489,3 +489,36 @@ export const billNotifications = mysqlTable("bill_notifications", {
 });
 export type BillNotification = typeof billNotifications.$inferSelect;
 export type InsertBillNotification = typeof billNotifications.$inferInsert;
+
+// ─── Import Sessions (sessões de importação de extrato/fatura) ────────────────
+export const importSessions = mysqlTable("import_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  type: mysqlEnum("type", ["bank_statement", "credit_card"]).notNull(),
+  filename: varchar("filename", { length: 255 }).notNull(),
+  bankAccountId: int("bankAccountId"), // para extrato bancário
+  creditCardId: int("creditCardId"),   // para fatura de cartão
+  totalRows: int("totalRows").notNull().default(0),
+  confirmedRows: int("confirmedRows").notNull().default(0),
+  status: mysqlEnum("status", ["pending", "completed", "cancelled"]).notNull().default("pending"),
+  createdAt: timestamp("createdAt").notNull(),
+});
+export type ImportSession = typeof importSessions.$inferSelect;
+export type InsertImportSession = typeof importSessions.$inferInsert;
+
+// ─── Import Transactions (transações detectadas no extrato/fatura) ────────────
+export const importTransactions = mysqlTable("import_transactions", {
+  id: int("id").autoincrement().primaryKey(),
+  sessionId: int("sessionId").notNull(),
+  userId: int("userId").notNull(),
+  date: date("date").notNull(),
+  description: varchar("description", { length: 500 }).notNull(),
+  amount: decimal("amount", { precision: 15, scale: 2 }).notNull(),
+  type: mysqlEnum("type", ["debit", "credit"]).notNull().default("debit"),
+  subcategoryId: int("subcategoryId"),   // categorização manual pelo usuário
+  notes: text("notes"),
+  status: mysqlEnum("status", ["pending", "confirmed", "ignored"]).notNull().default("pending"),
+  createdAt: timestamp("createdAt").notNull(),
+});
+export type ImportTransaction = typeof importTransactions.$inferSelect;
+export type InsertImportTransaction = typeof importTransactions.$inferInsert;

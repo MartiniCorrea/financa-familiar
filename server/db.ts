@@ -10,6 +10,8 @@ import {
   InvestmentTransaction, PriceHistory, ShoppingItem, ShoppingList, Supermarket,
   AccountTransfer, InsertAccountTransfer, RecurringRule, InsertRecurringRule,
   BillNotification, InsertBillNotification,
+  ImportSession, InsertImportSession, ImportTransaction, InsertImportTransaction,
+  importSessions, importTransactions,
   accountTransfers, recurringRules, billNotifications,
   bankAccounts, bills, budgets, creditCardInvoices, creditCardItems, creditCards, expenseCategories, expenses, familyMembers,
   financialGoals, goalContributions, incomes, investmentTransactions,
@@ -1400,4 +1402,186 @@ export async function markBillNotificationSent(userId: number, billId: number, d
   const db = await getDb();
   if (!db) return;
   await db.insert(billNotifications).values({ userId, billId, daysBeforeDue });
+}
+
+
+// ─── Import Sessions & Transactions ──────────────────────────────────────────
+
+export async function createImportSession(data: Omit<InsertImportSession, "id">): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("DB unavailable");
+  const [result] = await db.insert(importSessions).values(data);
+  return (result as any).insertId;
+}
+
+export async function getImportSessions(userId: number): Promise<ImportSession[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(importSessions)
+    .where(eq(importSessions.userId, userId))
+    .orderBy(desc(importSessions.createdAt));
+}
+
+export async function getImportSession(id: number, userId: number): Promise<ImportSession | null> {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(importSessions)
+    .where(and(eq(importSessions.id, id), eq(importSessions.userId, userId)))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function createImportTransactions(rows: Omit<InsertImportTransaction, "id">[]): Promise<void> {
+  const db = await getDb();
+  if (!db || rows.length === 0) return;
+  // Inserir em lotes de 50
+  for (let i = 0; i < rows.length; i += 50) {
+    await db.insert(importTransactions).values(rows.slice(i, i + 50));
+  }
+}
+
+export async function getImportTransactions(sessionId: number, userId: number): Promise<ImportTransaction[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(importTransactions)
+    .where(and(eq(importTransactions.sessionId, sessionId), eq(importTransactions.userId, userId)))
+    .orderBy(asc(importTransactions.date));
+}
+
+export async function updateImportTransaction(
+  id: number,
+  userId: number,
+  data: Partial<Pick<ImportTransaction, "subcategoryId" | "notes" | "status" | "description">>
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(importTransactions)
+    .set(data)
+    .where(and(eq(importTransactions.id, id), eq(importTransactions.userId, userId)));
+}
+
+export async function confirmImportTransaction(
+  txId: number,
+  userId: number,
+  sessionType: "bank_statement" | "credit_card",
+  bankAccountId: number | null,
+  creditCardId: number | null,
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  const rows = await db.select().from(importTransactions)
+    .where(and(eq(importTransactions.id, txId), eq(importTransactions.userId, userId)))
+    .limit(1);
+  const tx = rows[0];
+  if (!tx || tx.status === "confirmed") return;
+
+  const now = new Date();
+  const nowStr = now.toISOString().replace("T", " ").split(".")[0];
+
+  if (sessionType === "bank_statement") {
+    if (tx.type === "debit") {
+      await db.insert(expenses).values({
+        userId,
+        description: tx.description,
+        amount: String(tx.amount),
+        date: tx.date,
+        parentCategory: "financeiro",
+        subcategoryId: tx.subcategoryId ?? undefined,
+        bankAccountId: bankAccountId ?? undefined,
+        notes: tx.notes ?? undefined,
+        paymentMethod: "transferencia",
+        sourceType: "normal",
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      await db.insert(incomes).values({
+        userId,
+        description: tx.description,
+        amount: String(tx.amount),
+        date: tx.date,
+        category: "outros",
+        bankAccountId: bankAccountId ?? undefined,
+        notes: tx.notes ?? undefined,
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+  } else if (sessionType === "credit_card" && creditCardId) {
+    // Lança como item de fatura do cartão
+    const invoiceRows = await db.select().from(creditCardInvoices)
+      .where(and(
+        eq(creditCardInvoices.userId, userId),
+        eq(creditCardInvoices.creditCardId, creditCardId),
+        eq(creditCardInvoices.status, "aberta"),
+      ))
+      .orderBy(desc(creditCardInvoices.createdAt))
+      .limit(1);
+
+    let invoiceId: number;
+    if (invoiceRows.length > 0) {
+      invoiceId = invoiceRows[0].id;
+    } else {
+      const month = new Date(tx.date + "T12:00:00").getMonth() + 1;
+      const year = new Date(tx.date + "T12:00:00").getFullYear();
+      const [res] = await db.insert(creditCardInvoices).values({
+        userId,
+        creditCardId,
+        month,
+        year,
+        totalAmount: "0",
+        status: "aberta",
+        createdAt: now,
+      });
+      invoiceId = (res as any).insertId;
+    }
+
+    await db.insert(creditCardItems).values({
+      userId,
+      invoiceId,
+      creditCardId,
+      description: tx.description,
+      amount: String(tx.amount),
+      parentCategory: "financeiro",
+      subcategoryId: tx.subcategoryId ?? undefined,
+      purchaseDate: tx.date,
+      installments: 1,
+      currentInstallment: 1,
+      totalInstallments: 1,
+      notes: tx.notes ?? undefined,
+      isRecurring: 0,
+      createdAt: now,
+    });
+
+    // Recalcular total da fatura
+    const items = await db.select().from(creditCardItems)
+      .where(eq(creditCardItems.invoiceId, invoiceId));
+    const total = items.reduce((s, i) => s + parseFloat(String(i.amount)), 0);
+    await db.update(creditCardInvoices)
+      .set({ totalAmount: String(total) })
+      .where(eq(creditCardInvoices.id, invoiceId));
+  }
+
+  // Marcar como confirmada
+  await db.update(importTransactions)
+    .set({ status: "confirmed" })
+    .where(eq(importTransactions.id, txId));
+
+  // Atualizar contador da sessão
+  await db.execute(
+    sql`UPDATE import_sessions SET confirmedRows = confirmedRows + 1 WHERE id = ${tx.sessionId}`
+  );
+}
+
+export async function updateImportSessionStatus(
+  sessionId: number,
+  userId: number,
+  status: "pending" | "completed" | "cancelled"
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(importSessions)
+    .set({ status })
+    .where(and(eq(importSessions.id, sessionId), eq(importSessions.userId, userId)));
 }

@@ -295,3 +295,19 @@
 - [x] Frontend: botão "Exportar PDF" na página de Relatórios
 - [x] Frontend: modal de seleção (período, seções a incluir)
 - [x] Frontend: download automático do arquivo PDF gerado
+
+## Módulo v35 — Importação de Extratos e Faturas
+- [x] Schema: tabela import_sessions (id, userId, type, filename, status, createdAt)
+- [x] Schema: tabela import_transactions (id, sessionId, userId, date, description, amount, type, bankAccountId, creditCardId, subcategoryId, status: pending/confirmed/ignored)
+- [x] Backend: parser CSV genérico (colunas data, descrição, valor)
+- [x] Backend: parser OFX (formato bancário padrão)
+- [x] Backend: parser CSV de fatura de cartão (Nubank, Inter, C6, genérico)
+- [x] Backend: endpoint POST /api/imports/upload (multipart, processa e retorna transações)
+- [x] Backend: router imports (listSessions, getSession, updateTransaction, confirmImport, deleteSession)
+- [x] Frontend: página /importar com upload drag-and-drop
+- [x] Frontend: seleção de tipo (extrato bancário / fatura cartão) e conta/cartão destino
+- [x] Frontend: tabela de prévia com todas as transações detectadas
+- [x] Frontend: categorização manual inline (subcategoria 50/30/20 por linha)
+- [x] Frontend: botões "Confirmar todos" e "Confirmar selecionados"
+- [x] Frontend: badge de status por transação (pendente / confirmado / ignorado)
+- [x] Menu lateral: item "Importar Extrato" com ícone FileUp no grupo Utilidades
