@@ -657,9 +657,22 @@ const importCsvRouter = router({
   })).mutation(async ({ ctx, input }) => {
     let imported = 0;
     for (const item of input.items) {
-      const d = new Date(item.date);
-      const month = d.getMonth() + 1;
-      const year = d.getFullYear();
+      // Garantir formato YYYY-MM-DD para o MySQL (campo date no schema)
+      const rawDate = item.date;
+      let isoDate: string;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+        isoDate = rawDate; // já está no formato correto
+      } else {
+        // Converter qualquer outro formato para YYYY-MM-DD
+        const d = new Date(rawDate);
+        const y = d.getUTCFullYear();
+        const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+        const day = String(d.getUTCDate()).padStart(2, '0');
+        isoDate = `${y}-${m}-${day}`;
+      }
+      const [yearStr, monthStr] = isoDate.split('-');
+      const month = parseInt(monthStr, 10);
+      const year = parseInt(yearStr, 10);
       const invoice = await db.getOrCreateInvoice(ctx.user.id, input.creditCardId, month, year);
       await db.addItemToInvoice({
         userId: ctx.user.id,
@@ -668,9 +681,9 @@ const importCsvRouter = router({
         description: item.description,
         amount: item.amount,
         parentCategory: item.category,
-        subcategoryId: item.subcategoryId,
-        purchaseDate: new Date(item.date),
-        notes: item.notes,
+        subcategoryId: item.subcategoryId ?? null,
+        purchaseDate: isoDate as unknown as Date,
+        notes: item.notes ?? null,
         installments: 1,
         currentInstallment: 1,
         totalInstallments: 1,
