@@ -311,3 +311,11 @@
 - [x] Frontend: botões "Confirmar todos" e "Confirmar selecionados"
 - [x] Frontend: badge de status por transação (pendente / confirmado / ignorado)
 - [x] Menu lateral: item "Importar Extrato" com ícone FileUp no grupo Utilidades
+
+## Módulo v36 — Importação CSV integrada nas Despesas e Cartões
+- [x] Backend: router importCsv com categorização automática via LLM (importCsv.categorize)
+- [x] Backend: router importCsv com importação em lote de despesas (importCsv.importExpenses)
+- [x] Backend: router importCsv com importação em lote de itens de cartão (importCsv.importCreditCardItems)
+- [x] Frontend: componente CsvImportModal reutilizável com upload, prévia editável e categorização via IA
+- [x] Despesas: botão "Importar CSV" no cabeçalho da página
+- [x] Cartões: botão "Importar CSV" ao lado do botão "Adicionar Gasto" na fatura

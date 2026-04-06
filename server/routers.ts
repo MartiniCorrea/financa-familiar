@@ -3,6 +3,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { notifyOwner } from "./_core/notification";
+import { invokeLLM } from "./_core/llm";
 import { z } from "zod";
 import * as db from "./db";
 
@@ -570,6 +571,118 @@ const billAlertsRouter = router({
   }),
 });
 
+// ─── Import CSV Router ─────────────────────────────────────────────────────────
+const PARENT_CATEGORIES = ["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros"] as const;
+
+const importCsvRouter = router({
+  // Categoriza automaticamente uma lista de descrições de transações via LLM
+  categorize: protectedProcedure.input(z.object({
+    transactions: z.array(z.object({
+      id: z.string(),
+      description: z.string(),
+      amount: z.number(),
+    })),
+  })).mutation(async ({ input }) => {
+    const list = input.transactions.map(t => `${t.id}|${t.description}|${t.amount}`).join('\n');
+    const response = await invokeLLM({
+      messages: [
+        { role: 'system', content: `Você é um assistente de finanças pessoais. Categorize cada transação financeira em uma das seguintes categorias: habitacao, alimentacao, saude, educacao, transporte, vestuario, lazer, financeiro, utilidades, pessoal, outros. Responda APENAS com JSON no formato {"results":[{"id":"...","category":"...","reason":"..."}]}. Sem texto adicional.` },
+        { role: 'user', content: `Categorize estas transações (formato: id|descrição|valor):\n${list}` },
+      ],
+      response_format: {
+        type: 'json_schema',
+        json_schema: {
+          name: 'categorization',
+          strict: true,
+          schema: {
+            type: 'object',
+            properties: {
+              results: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    category: { type: 'string', enum: PARENT_CATEGORIES as unknown as string[] },
+                    reason: { type: 'string' },
+                  },
+                  required: ['id', 'category', 'reason'],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ['results'],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+    const content = response.choices[0].message.content;
+    const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+    return parsed as { results: Array<{ id: string; category: string; reason: string }> };
+  }),
+
+  // Importa em lote despesas a partir do CSV já parseado no frontend
+  importExpenses: protectedProcedure.input(z.object({
+    expenses: z.array(z.object({
+      description: z.string(),
+      amount: z.string(),
+      date: z.string(),
+      parentCategory: z.enum(PARENT_CATEGORIES),
+      subcategoryId: z.number().optional(),
+      bankAccountId: z.number().optional(),
+      paymentMethod: z.enum(["dinheiro","debito","credito","pix","transferencia","boleto","outros"]).optional(),
+      notes: z.string().optional(),
+    })),
+  })).mutation(async ({ ctx, input }) => {
+    const results = [];
+    for (const expense of input.expenses) {
+      const created = await db.createExpense({ ...expense, userId: ctx.user.id } as any);
+      results.push(created);
+    }
+    return { imported: results.length };
+  }),
+
+  // Importa em lote lançamentos de cartão de crédito
+  importCreditCardItems: protectedProcedure.input(z.object({
+    creditCardId: z.number(),
+    items: z.array(z.object({
+      description: z.string(),
+      amount: z.string(),
+      date: z.string(),
+      category: z.enum(PARENT_CATEGORIES),
+      subcategoryId: z.number().optional(),
+      notes: z.string().optional(),
+    })),
+  })).mutation(async ({ ctx, input }) => {
+    let imported = 0;
+    for (const item of input.items) {
+      const d = new Date(item.date);
+      const month = d.getMonth() + 1;
+      const year = d.getFullYear();
+      const invoice = await db.getOrCreateInvoice(ctx.user.id, input.creditCardId, month, year);
+      await db.addItemToInvoice({
+        userId: ctx.user.id,
+        invoiceId: invoice.id,
+        creditCardId: input.creditCardId,
+        description: item.description,
+        amount: item.amount,
+        parentCategory: item.category,
+        subcategoryId: item.subcategoryId,
+        purchaseDate: new Date(item.date),
+        notes: item.notes,
+        installments: 1,
+        currentInstallment: 1,
+        totalInstallments: 1,
+        isRecurring: 0,
+        createdAt: new Date(),
+      });
+      imported++;
+    }
+    return { imported };
+  }),
+});
+
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   system: systemRouter,
@@ -600,5 +713,7 @@ export const appRouter = router({
   creditCardInvoices: creditCardInvoicesRouter,
    recurring: recurringRouter,
   billAlerts: billAlertsRouter,
+  importCsv: importCsvRouter,
 });
 export type AppRouter = typeof appRouter;
+

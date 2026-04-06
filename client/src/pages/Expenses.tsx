@@ -10,9 +10,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Pencil, Trash2, TrendingDown, Search, Layers, X, CreditCard, Repeat } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingDown, Search, Layers, X, CreditCard, Repeat, FileUp } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { CsvImportModal } from "@/components/CsvImportModal";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => {
   const d = new Date(2024, i, 1);
@@ -57,6 +58,7 @@ export default function Expenses() {
   const [detailExpense, setDetailExpense] = useState<any | null>(null);
   const [detailNotes, setDetailNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
@@ -169,6 +171,17 @@ export default function Expenses() {
           <h1 className="text-2xl font-bold text-foreground">Despesas</h1>
           <p className="text-muted-foreground text-sm mt-1">Controle todos os seus gastos</p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setCsvImportOpen(true)} className="gap-2">
+            <FileUp className="w-4 h-4" /> Importar CSV
+          </Button>
+          <CsvImportModal
+            open={csvImportOpen}
+            onOpenChange={setCsvImportOpen}
+            mode="expenses"
+            bankAccountId={accountFilter !== 'all' ? parseInt(accountFilter) : undefined}
+            onSuccess={() => { utils.expenses.list.invalidate(); utils.dashboard.summary.invalidate(); }}
+          />
         <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); } }}>
           <DialogTrigger asChild>
             <Button>
@@ -550,7 +563,8 @@ export default function Expenses() {
             );
           })()}
         </SheetContent>
-      </Sheet>
+        </Sheet>
+        </div>
     </div>
   );
 }

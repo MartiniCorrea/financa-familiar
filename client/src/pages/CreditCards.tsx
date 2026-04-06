@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight, CheckCircle2, PlusCircle, X, RotateCcw, Repeat } from "lucide-react";
+import { Plus, Trash2, Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight, CheckCircle2, PlusCircle, X, RotateCcw, Repeat, FileUp } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { CsvImportModal } from "@/components/CsvImportModal";
 
 const CARD_COLORS = ['#6366f1', '#f59e0b', '#22c55e', '#ef4444', '#06b6d4', '#ec4899', '#8b5cf6', '#d97706'];
 
@@ -61,6 +62,7 @@ export default function CreditCards() {
   const [month, setMonth] = useState(getCurrentMonth());
   const [year, setYear] = useState(getCurrentYear());
   const [itemOpen, setItemOpen] = useState(false);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [itemForm, setItemForm] = useState<ItemForm>(emptyItemForm);
   const [invoiceId, setInvoiceId] = useState<number | null>(null);
   const [editItemOpen, setEditItemOpen] = useState(false);
@@ -487,9 +489,23 @@ export default function CreditCards() {
                     </>
                   )}
                   {(!currentInvoice || currentInvoice.status !== 'paga') && (
-                    <Button onClick={openAddItem} className="gap-2" disabled={getOrCreateInvoiceMutation.isPending}>
-                      <PlusCircle className="w-4 h-4" /> Adicionar Gasto
-                    </Button>
+                    <>
+                      <Button variant="outline" onClick={() => setCsvImportOpen(true)} className="gap-2">
+                        <FileUp className="w-4 h-4" /> Importar CSV
+                      </Button>
+                      {selectedCardId && (
+                        <CsvImportModal
+                          open={csvImportOpen}
+                          onOpenChange={setCsvImportOpen}
+                          mode="creditCard"
+                          creditCardId={selectedCardId}
+                          onSuccess={() => { utils.creditCardInvoices.list.invalidate(); utils.creditCardInvoices.getItems.invalidate(); }}
+                        />
+                      )}
+                      <Button onClick={openAddItem} className="gap-2" disabled={getOrCreateInvoiceMutation.isPending}>
+                        <PlusCircle className="w-4 h-4" /> Adicionar Gasto
+                      </Button>
+                    </>
                   )}
                 </div>
               </div>
