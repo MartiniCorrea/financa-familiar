@@ -902,7 +902,17 @@ export async function updateInvoiceTotal(invoiceId: number) {
 export async function addItemToInvoice(data: InsertCreditCardItem) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  await db.insert(creditCardItems).values(data);
+  // Sanitizar campos opcionais: garantir null (não undefined nem string vazia) para o MySQL
+  const sanitized = {
+    ...data,
+    subcategoryId: (data.subcategoryId != null && data.subcategoryId !== undefined && String(data.subcategoryId).trim() !== '') 
+      ? Number(data.subcategoryId) 
+      : null,
+    notes: (data.notes && String(data.notes).trim() !== '') ? String(data.notes).trim() : null,
+    expenseId: (data.expenseId != null && data.expenseId !== undefined) ? Number(data.expenseId) : null,
+    recurringRuleId: (data.recurringRuleId != null && data.recurringRuleId !== undefined) ? Number(data.recurringRuleId) : null,
+  };
+  await db.insert(creditCardItems).values(sanitized as any);
   await updateInvoiceTotal(data.invoiceId);
   // Ensure bill exists for this invoice
   await syncInvoiceBill(data.userId, data.invoiceId);
