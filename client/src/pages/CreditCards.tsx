@@ -539,16 +539,22 @@ export default function CreditCards() {
                       </div>
                       <div className="flex items-center gap-3 ml-3 shrink-0">
                         <p className="font-semibold text-red-400">{formatCurrency(parseFloat(String(item.amount)))}</p>
-                        {currentInvoice?.status !== 'paga' && (
-                          <div className="flex items-center gap-1">
-                            <button onClick={() => openEditItem(item)} className="text-muted-foreground hover:text-blue-400 transition-colors p-1" title="Editar">
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button onClick={() => removeItemMutation.mutate({ itemId: item.id })} className="text-muted-foreground hover:text-red-400 transition-colors p-1" title="Excluir">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        )}
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => openEditItem(item)} className="text-muted-foreground hover:text-blue-400 transition-colors p-1" title="Editar">
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (currentInvoice?.status === 'paga') {
+                                if (!confirm('Esta fatura já está paga. Excluir este item irá alterar o total da fatura. Deseja continuar?')) return;
+                              }
+                              removeItemMutation.mutate({ itemId: item.id });
+                            }}
+                            className="text-muted-foreground hover:text-red-400 transition-colors p-1" title="Excluir"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

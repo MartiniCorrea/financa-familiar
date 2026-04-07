@@ -656,6 +656,18 @@ const importCsvRouter = router({
     })),
   })).mutation(async ({ ctx, input }) => {
     let imported = 0;
+    // Buscar o cartão uma vez para obter o closingDay
+    const card = await db.getCreditCardById(ctx.user.id, input.creditCardId);
+    const closingDay = card?.closingDay ?? 1;
+
+    // Função auxiliar para avançar N meses
+    function addMonths(month: number, year: number, n: number): { month: number; year: number } {
+      let m = month + n;
+      let y = year;
+      while (m > 12) { m -= 12; y++; }
+      return { month: m, year: y };
+    }
+
     for (const item of input.items) {
       // Garantir formato YYYY-MM-DD para o MySQL (campo date no schema)
       const rawDate = item.date;
@@ -670,10 +682,27 @@ const importCsvRouter = router({
         const day = String(d.getUTCDate()).padStart(2, '0');
         isoDate = `${y}-${m}-${day}`;
       }
-      const [yearStr, monthStr] = isoDate.split('-');
-      const month = parseInt(monthStr, 10);
-      const year = parseInt(yearStr, 10);
-      const invoice = await db.getOrCreateInvoice(ctx.user.id, input.creditCardId, month, year);
+      const [yearStr, monthStr, dayStr] = isoDate.split('-');
+      const purchaseMonth = parseInt(monthStr, 10);
+      const purchaseYear = parseInt(yearStr, 10);
+      const purchaseDay = parseInt(dayStr, 10);
+
+      // Determinar mês/ano da fatura usando a mesma lógica do addItem:
+      // Compra antes ou no fechamento → fatura do próximo mês
+      // Compra após o fechamento → fatura de dois meses à frente
+      let invoiceMonth: number;
+      let invoiceYear: number;
+      if (purchaseDay <= closingDay) {
+        const next = addMonths(purchaseMonth, purchaseYear, 1);
+        invoiceMonth = next.month;
+        invoiceYear = next.year;
+      } else {
+        const next = addMonths(purchaseMonth, purchaseYear, 2);
+        invoiceMonth = next.month;
+        invoiceYear = next.year;
+      }
+
+      const invoice = await db.getOrCreateInvoice(ctx.user.id, input.creditCardId, invoiceMonth, invoiceYear);
       // Garantir que subcategoryId e notes sejam null (não undefined nem string vazia)
       const subcategoryId = (item.subcategoryId != null && item.subcategoryId !== undefined) ? item.subcategoryId : null;
       const notes = (item.notes && String(item.notes).trim() !== '') ? String(item.notes).trim() : null;
