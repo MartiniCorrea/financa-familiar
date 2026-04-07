@@ -210,14 +210,8 @@ export default function CreditCards() {
     if (!editItemId || !editItemForm.description || !editItemForm.amount) return toast.error('Preencha os campos obrigatórios');
     const subcatId = editItemForm.subcategoryId ? parseInt(editItemForm.subcategoryId) : undefined;
     const subcat = subcatId ? allSubcats.find(s => s.id === subcatId) : undefined;
-    const group = subcat ? expenseGroups.find(g => g.id === subcat.groupId) : undefined;
-    // Usar ID do grupo para derivar parentCategory (mais confiável que comparar nomes)
-    const groupIdToEnum: Record<number, string> = {
-      1: 'habitacao', // Gastos necessários
-      2: 'lazer',     // Gastos não necessários
-      3: 'financeiro', // Investimentos (se existir)
-    };
-    const parentCategory = group ? (groupIdToEnum[group.id] || 'outros') : 'outros';
+    // Usar parentCategory da própria subcategoria (campo adicionado na tabela)
+    const parentCategory = (subcat as any)?.parentCategory || 'outros';
     updateItemMutation.mutate({
       itemId: editItemId,
       description: editItemForm.description,
@@ -272,14 +266,8 @@ export default function CreditCards() {
     }
     const subcatId = itemForm.subcategoryId ? parseInt(itemForm.subcategoryId) : undefined;
     const subcat = subcatId ? allSubcats.find(s => s.id === subcatId) : undefined;
-    const group = subcat ? expenseGroups.find(g => g.id === subcat.groupId) : undefined;
-    // Usar ID do grupo para derivar parentCategory (mais confiável que comparar nomes)
-    const groupIdToEnum: Record<number, string> = {
-      1: 'habitacao', // Gastos necessários
-      2: 'lazer',     // Gastos não necessários
-      3: 'financeiro', // Investimentos (se existir)
-    };
-    const parentCategory = group ? (groupIdToEnum[group.id] || 'outros') : 'outros';
+    // Usar parentCategory da própria subcategoria (campo adicionado na tabela)
+    const parentCategory = (subcat as any)?.parentCategory || 'outros';
     addItemMutation.mutate({
       invoiceId: targetInvoiceId,
       creditCardId: selectedCardId,
@@ -566,13 +554,13 @@ export default function CreditCards() {
                           )}
                           <Badge variant="outline" className="text-xs shrink-0 capitalize">
                             {(() => {
-                              // Se parentCategory for 'outros' mas houver subcategoria, derivar da subcategoria
+                              // Priorizar parentCategory da subcategoria (mais preciso)
                               let cat = item.parentCategory;
-                              if (cat === 'outros' && item.subcategoryId) {
+                              if (item.subcategoryId) {
                                 const subcat = allSubcats.find((s: any) => s.id === item.subcategoryId);
-                                const group = subcat ? expenseGroups.find((g: any) => g.id === subcat.groupId) : undefined;
-                                const groupIdToEnum: Record<number, string> = { 1: 'habitacao', 2: 'lazer', 3: 'financeiro' };
-                                if (group) cat = (groupIdToEnum[group.id] || 'outros') as typeof cat;
+                                if (subcat && (subcat as any).parentCategory && (subcat as any).parentCategory !== 'outros') {
+                                  cat = (subcat as any).parentCategory;
+                                }
                               }
                               return EXPENSE_CATEGORIES.find(c => c.value === cat)?.label || cat;
                             })()} 

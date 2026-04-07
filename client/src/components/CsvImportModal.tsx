@@ -262,13 +262,8 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
       if (field === "subcategoryId" && typeof value === "number" && value > 0) {
         const subcat = allSubcats.find((s: any) => s.id === value);
         const group = subcat ? expenseGroups.find((g: any) => g.id === subcat.groupId) : undefined;
-        // Usar ID do grupo para derivar parentCategory (mais confiável que comparar nomes)
-        const groupIdToEnum: Record<number, string> = {
-          1: 'habitacao', // Gastos necessários
-          2: 'lazer',     // Gastos não necessários
-          3: 'financeiro', // Investimentos (se existir)
-        };
-        const derivedCategory = group ? (groupIdToEnum[group.id] || 'outros') : 'outros';
+        // Usar parentCategory da própria subcategoria (campo adicionado na tabela)
+        const derivedCategory = (subcat as any)?.parentCategory || 'outros';
         updated.category = derivedCategory;
       }
       return updated;

@@ -373,6 +373,11 @@ export type ExpenseGroup = typeof expenseGroups.$inferSelect;
 export type InsertExpenseGroup = typeof expenseGroups.$inferInsert;
 
 // ─── Expense Subcategories (custom 50/30/20 subcategories) ───────────────────
+export const PARENT_CATEGORIES_ENUM = [
+  'alimentacao', 'habitacao', 'saude', 'educacao', 'transporte',
+  'vestuario', 'lazer', 'financeiro', 'utilidades', 'pessoal', 'outros'
+] as const;
+
 export const expenseSubcategories = mysqlTable("expense_subcategories", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
@@ -380,6 +385,7 @@ export const expenseSubcategories = mysqlTable("expense_subcategories", {
   name: varchar("name", { length: 100 }).notNull(),
   color: varchar("color", { length: 20 }).default("#6366f1"),
   icon: varchar("icon", { length: 50 }).default("tag"),
+  parentCategory: varchar("parentCategory", { length: 50 }).default("outros"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

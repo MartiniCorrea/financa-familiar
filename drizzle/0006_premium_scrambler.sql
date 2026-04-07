@@ -1,0 +1,1 @@
+ALTER TABLE `expense_subcategories` ADD `parentCategory` varchar(50) DEFAULT 'outros';

@@ -26,7 +26,20 @@ export default function ExpenseGroups() {
   const [openSubcat, setOpenSubcat] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<number[]>([]);
   const [groupForm, setGroupForm] = useState({ name: "", groupType: "necessario" as "necessario" | "nao_necessario" | "investimento", targetPercent: "50", color: "#3b82f6" });
-  const [subcatForm, setSubcatForm] = useState({ groupId: "", name: "", color: "#3b82f6" });
+  const EXPENSE_CATEGORIES_OPTIONS = [
+    { value: "alimentacao", label: "Alimentação" },
+    { value: "habitacao", label: "Habitação" },
+    { value: "saude", label: "Saúde" },
+    { value: "educacao", label: "Educação" },
+    { value: "transporte", label: "Transporte" },
+    { value: "vestuario", label: "Vestuário" },
+    { value: "lazer", label: "Lazer" },
+    { value: "financeiro", label: "Financeiro" },
+    { value: "utilidades", label: "Utilidades" },
+    { value: "pessoal", label: "Pessoal" },
+    { value: "outros", label: "Outros" },
+  ];
+  const [subcatForm, setSubcatForm] = useState({ groupId: "", name: "", color: "#3b82f6", parentCategory: "outros" });
 
   // Busca grupos e subcategorias separadamente para garantir que subcategorias apareçam sempre
   const { data: groups = [], refetch: refetchGroups } = trpc.expenseGroups.list.useQuery();
@@ -50,7 +63,7 @@ export default function ExpenseGroups() {
     onError: (e) => toast.error(e.message),
   });
   const createSubcatMutation = trpc.expenseGroups.subcategories.create.useMutation({
-    onSuccess: () => { toast.success("Subcategoria criada!"); setOpenSubcat(false); setSubcatForm({ groupId: "", name: "", color: "#3b82f6" }); refetchAll(); },
+    onSuccess: () => { toast.success("Subcategoria criada!"); setOpenSubcat(false); setSubcatForm({ groupId: "", name: "", color: "#3b82f6", parentCategory: "outros" }); refetchAll(); },
     onError: (e) => toast.error(e.message),
   });
   const deleteSubcatMutation = trpc.expenseGroups.subcategories.delete.useMutation({
@@ -124,6 +137,19 @@ export default function ExpenseGroups() {
                     onChange={e => setSubcatForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="Ex: Supermercado, Lanche, Farmácia..."
                   />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Categoria Principal *</Label>
+                  <Select value={subcatForm.parentCategory} onValueChange={v => setSubcatForm(f => ({ ...f, parentCategory: v }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a categoria..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {EXPENSE_CATEGORIES_OPTIONS.map(c => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Cor</Label>

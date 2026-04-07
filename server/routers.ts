@@ -379,6 +379,7 @@ const expenseGroupsRouter = router({
       name: z.string().min(1).max(100),
       color: z.string().optional(),
       icon: z.string().optional(),
+      parentCategory: z.string().optional().default('outros'),
     })).mutation(({ ctx, input }) => db.createExpenseSubcategory({ ...input, userId: ctx.user.id } as any)),
     delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteExpenseSubcategory(input.id, ctx.user.id)),
   }),
