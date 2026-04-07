@@ -63,18 +63,46 @@ const PAYMENT_METHODS = [
 ];
 
 // ─── CSV Parser ───────────────────────────────────────────────────────────────
+// Detecta se o valor usa formato americano (ponto decimal) ou brasileiro (vírgula decimal)
+function parseAmount(raw: string): number | null {
+  const cleaned = raw.replace(/[R$\s]/g, "").trim();
+  if (!cleaned) return null;
+
+  // Formato americano: só tem ponto como decimal (ex: 7.95, 1234.56, -3987.66)
+  // Formato brasileiro com milhar: 1.234,56 (tem ponto E vírgula)
+  // Formato brasileiro sem milhar: 1234,56 (só vírgula)
+
+  const hasDot = cleaned.includes(".");
+  const hasComma = cleaned.includes(",");
+
+  let normalized: string;
+  if (hasDot && hasComma) {
+    // Formato brasileiro com milhar: 1.234,56 → remover pontos, trocar vírgula por ponto
+    normalized = cleaned.replace(/\./g, "").replace(",", ".");
+  } else if (hasComma && !hasDot) {
+    // Formato brasileiro sem milhar: 1234,56 → trocar vírgula por ponto
+    normalized = cleaned.replace(",", ".");
+  } else {
+    // Formato americano ou sem separador: 7.95, 1234.56, 1234
+    normalized = cleaned;
+  }
+
+  const val = parseFloat(normalized);
+  return isNaN(val) ? null : val;
+}
+
 function parseCSV(text: string): ParsedRow[] {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
 
-  // Detect separator: comma or semicolon
+  // Detectar separador: ponto-e-vírgula ou vírgula
   const sep = lines[0].includes(";") ? ";" : ",";
   const headers = lines[0].split(sep).map(h => h.trim().toLowerCase().replace(/['"]/g, ""));
 
-  // Try to find column indices flexibly
+  // Encontrar índice de coluna de forma flexível
   const findCol = (...names: string[]) => {
     for (const name of names) {
-      const idx = headers.findIndex(h => h.includes(name));
+      const idx = headers.findIndex(h => h === name || h.includes(name));
       if (idx !== -1) return idx;
     }
     return -1;
@@ -82,15 +110,17 @@ function parseCSV(text: string): ParsedRow[] {
 
   const dateIdx = findCol("data", "date", "dt");
   const amountIdx = findCol("valor", "amount", "value", "vl", "quantia");
-  const identifierIdx = findCol("identificador", "identifier", "id", "codigo", "code", "ref");
-  const descIdx = findCol("descricao", "descrição", "description", "desc", "historico", "histórico", "memo", "estabelecimento", "lançamento", "lancamento", "title");
+  const identifierIdx = findCol("identificador", "identifier", "codigo", "code", "ref");
+  // Nubank usa "title"; outros bancos usam "descricao", "description", etc.
+  const descIdx = findCol("title", "descricao", "descrição", "description", "desc",
+    "historico", "histórico", "memo", "estabelecimento", "lançamento", "lancamento");
 
   const rows: ParsedRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i].trim();
     if (!line) continue;
 
-    // Handle quoted fields
+    // Processar campos com suporte a aspas
     const cols: string[] = [];
     let inQuote = false;
     let cur = "";
@@ -102,12 +132,14 @@ function parseCSV(text: string): ParsedRow[] {
     }
     cols.push(cur.trim());
 
-    const rawDate = dateIdx >= 0 ? cols[dateIdx] ?? "" : "";
-    const rawAmount = amountIdx >= 0 ? cols[amountIdx] ?? "" : "";
-    const rawIdentifier = identifierIdx >= 0 ? cols[identifierIdx] ?? "" : `TX${i}`;
-    const rawDesc = descIdx >= 0 ? cols[descIdx] ?? "" : cols.filter((_, ci) => ci !== dateIdx && ci !== amountIdx).join(" ");
+    const rawDate = dateIdx >= 0 ? (cols[dateIdx] ?? "") : "";
+    const rawAmount = amountIdx >= 0 ? (cols[amountIdx] ?? "") : "";
+    const rawIdentifier = identifierIdx >= 0 ? (cols[identifierIdx] ?? "") : "";
+    const rawDesc = descIdx >= 0
+      ? (cols[descIdx] ?? "")
+      : cols.filter((_, ci) => ci !== dateIdx && ci !== amountIdx).join(" ");
 
-    // Parse date: DD/MM/YYYY or YYYY-MM-DD
+    // Converter data: DD/MM/AAAA ou DD/MM/AA → AAAA-MM-DD
     let isoDate = rawDate;
     if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
       const [d, m, y] = rawDate.split("/");
@@ -117,18 +149,24 @@ function parseCSV(text: string): ParsedRow[] {
       isoDate = `20${y}-${m}-${d}`;
     }
 
-    // Parse amount: handle Brazilian format (1.234,56 → 1234.56)
-    let numAmount = rawAmount.replace(/[R$\s]/g, "").replace(/\./g, "").replace(",", ".");
-    const parsed = parseFloat(numAmount);
-    if (isNaN(parsed) || parsed === 0) continue;
-    const absAmount = Math.abs(parsed).toFixed(2);
+    // Converter valor com detecção automática de formato
+    const parsedVal = parseAmount(rawAmount);
+    if (parsedVal === null || parsedVal === 0) continue;
+
+    // Ignorar linhas de pagamento/crédito (valor negativo = dinheiro recebido/estorno)
+    if (parsedVal < 0) continue;
+
+    const absAmount = parsedVal.toFixed(2);
+
+    // Limpar descrição de aspas extras do CSV
+    const description = rawDesc.replace(/^"|"$/g, "").trim() || rawIdentifier || `Transação ${i}`;
 
     rows.push({
       id: `row-${i}`,
       date: isoDate,
       amount: absAmount,
       identifier: rawIdentifier || `TX${i}`,
-      description: rawDesc || rawIdentifier || `Transação ${i}`,
+      description,
       category: "outros",
       selected: true,
       edited: false,
@@ -252,8 +290,9 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
           amount: r.amount,
           date: r.date,
           category: r.category as any,
-          subcategoryId: r.subcategoryId,
-          notes: r.notes,
+          // Enviar undefined (não null nem 0) para campos opcionais sem valor
+          subcategoryId: (r.subcategoryId && r.subcategoryId > 0) ? r.subcategoryId : undefined,
+          notes: (r.notes && r.notes.trim() !== '') ? r.notes.trim() : undefined,
         })),
       });
     }
@@ -298,15 +337,12 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
             </div>
 
             <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground space-y-1">
-              <p className="font-medium text-foreground mb-2">Formato esperado do CSV:</p>
-              <p>O arquivo deve ter colunas com os nomes (em qualquer ordem):</p>
-              <div className="grid grid-cols-2 gap-1 mt-2">
-                <div className="flex items-center gap-1"><Badge variant="outline" className="text-xs">data</Badge> <span>Data da transação</span></div>
-                <div className="flex items-center gap-1"><Badge variant="outline" className="text-xs">valor</Badge> <span>Valor em reais</span></div>
-                <div className="flex items-center gap-1"><Badge variant="outline" className="text-xs">identificador</Badge> <span>Código/referência</span></div>
-                <div className="flex items-center gap-1"><Badge variant="outline" className="text-xs">descrição</Badge> <span>Descrição do gasto</span></div>
+              <p className="font-medium text-foreground mb-2">Formatos suportados:</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5"><Badge variant="secondary" className="text-xs">Nubank</Badge> <span className="text-xs">date;title;amount (separador <code>;</code>, valores com ponto)</span></div>
+                <div className="flex items-center gap-1.5"><Badge variant="secondary" className="text-xs">Outros bancos</Badge> <span className="text-xs">data;descrição;valor ou data,descrição,valor</span></div>
               </div>
-              <p className="mt-2 text-xs">Formatos de data aceitos: DD/MM/AAAA ou AAAA-MM-DD. Separador: vírgula ou ponto-e-vírgula.</p>
+              <p className="mt-2 text-xs text-muted-foreground">Datas aceitas: DD/MM/AAAA ou AAAA-MM-DD. Valores: formato americano (7.95) ou brasileiro (7,95). Linhas com valor negativo (pagamentos) são ignoradas automaticamente.</p>
             </div>
           </div>
         )}
