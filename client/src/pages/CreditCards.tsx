@@ -552,19 +552,21 @@ export default function CreditCards() {
                               {item.currentInstallment}/{item.totalInstallments}x
                             </Badge>
                           )}
-                          <Badge variant="outline" className="text-xs shrink-0 capitalize">
-                            {(() => {
-                              // Priorizar parentCategory da subcategoria (mais preciso)
-                              let cat = item.parentCategory;
-                              if (item.subcategoryId) {
-                                const subcat = allSubcats.find((s: any) => s.id === item.subcategoryId);
-                                if (subcat && (subcat as any).parentCategory && (subcat as any).parentCategory !== 'outros') {
-                                  cat = (subcat as any).parentCategory;
-                                }
-                              }
-                              return EXPENSE_CATEGORIES.find(c => c.value === cat)?.label || cat;
-                            })()} 
-                          </Badge>
+{(() => {
+                              const subcat = item.subcategoryId ? allSubcats.find((s: any) => s.id === item.subcategoryId) : null;
+                              const group = subcat ? expenseGroups.find((g: any) => g.id === subcat.groupId) : null;
+                              const subcatColor = (subcat as any)?.color || '#6366f1';
+                              if (subcat) return (
+                                <>
+                                  <Badge variant="outline" className="text-xs shrink-0" style={{ borderColor: subcatColor + '60', color: subcatColor }}>
+                                    <div className="w-1.5 h-1.5 rounded-full mr-1 inline-block" style={{ backgroundColor: subcatColor }} />
+                                    {subcat.name}
+                                  </Badge>
+                                  {group && <Badge variant="secondary" className="text-xs shrink-0 text-muted-foreground">{group.name}</Badge>}
+                                </>
+                              );
+                              return <Badge variant="outline" className="text-xs shrink-0 text-muted-foreground">Sem categoria</Badge>;
+                            })()}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {formatDbDate(item.purchaseDate)}
