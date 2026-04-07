@@ -152,13 +152,37 @@ export default function CreditCards() {
   const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
 
   const updateItemMutation = trpc.creditCardInvoices.updateItem.useMutation({
-    onSuccess: () => {
-      utils.creditCardInvoices.getItems.invalidate();
+    onMutate: async (variables) => {
+      // Cancelar queries em andamento
+      await utils.creditCardInvoices.getItems.cancel();
+      // Snapshot do estado atual
+      const invoiceId = currentInvoice?.id ?? 0;
+      const previousItems = utils.creditCardInvoices.getItems.getData({ invoiceId });
+      // Atualizar o cache otimisticamente
+      utils.creditCardInvoices.getItems.setData({ invoiceId }, (old: any) => {
+        if (!old) return old;
+        return old.map((item: any) =>
+          item.id === variables.itemId
+            ? { ...item, description: variables.description, amount: variables.amount, parentCategory: variables.parentCategory, subcategoryId: variables.subcategoryId, purchaseDate: variables.purchaseDate, notes: variables.notes }
+            : item
+        );
+      });
+      return { previousItems, invoiceId };
+    },
+    onSuccess: (_data, _variables, context) => {
+      // Forçar refetch para garantir dados frescos do servidor
+      utils.creditCardInvoices.getItems.invalidate({ invoiceId: context?.invoiceId });
       utils.creditCardInvoices.list.invalidate();
       setEditItemOpen(false);
       toast.success('Gasto atualizado!');
     },
-    onError: (e) => toast.error(e.message || 'Erro ao atualizar gasto'),
+    onError: (e, _variables, context) => {
+      // Reverter em caso de erro
+      if (context?.previousItems !== undefined) {
+        utils.creditCardInvoices.getItems.setData({ invoiceId: context.invoiceId }, context.previousItems);
+      }
+      toast.error(e.message || 'Erro ao atualizar gasto');
+    },
   });
 
   function openEditItem(item: any) {
