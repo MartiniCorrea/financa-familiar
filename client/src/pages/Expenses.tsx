@@ -175,14 +175,7 @@ export default function Expenses() {
           <Button variant="outline" onClick={() => setCsvImportOpen(true)} className="gap-2">
             <FileUp className="w-4 h-4" /> Importar CSV
           </Button>
-          <CsvImportModal
-            open={csvImportOpen}
-            onOpenChange={setCsvImportOpen}
-            mode="expenses"
-            bankAccountId={accountFilter !== 'all' ? parseInt(accountFilter) : undefined}
-            onSuccess={() => { utils.expenses.list.invalidate(); utils.dashboard.summary.invalidate(); }}
-          />
-        <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); } }}>
+          <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); } }}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" /> Nova Despesa
@@ -321,7 +314,15 @@ export default function Expenses() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
+      <CsvImportModal
+        open={csvImportOpen}
+        onOpenChange={setCsvImportOpen}
+        mode="expenses"
+        bankAccountId={accountFilter !== 'all' ? parseInt(accountFilter) : undefined}
+        onSuccess={() => { utils.expenses.list.invalidate(); utils.dashboard.summary.invalidate(); }}
+      />
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -563,8 +564,7 @@ export default function Expenses() {
             );
           })()}
         </SheetContent>
-        </Sheet>
-        </div>
+      </Sheet>
     </div>
   );
 }
