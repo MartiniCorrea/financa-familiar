@@ -651,8 +651,8 @@ const importCsvRouter = router({
       amount: z.string(),
       date: z.string(),
       category: z.enum(PARENT_CATEGORIES),
-      subcategoryId: z.number().optional(),
-      notes: z.string().optional(),
+      subcategoryId: z.number().nullish(),
+      notes: z.string().nullish(),
     })),
   })).mutation(async ({ ctx, input }) => {
     let imported = 0;
@@ -674,6 +674,9 @@ const importCsvRouter = router({
       const month = parseInt(monthStr, 10);
       const year = parseInt(yearStr, 10);
       const invoice = await db.getOrCreateInvoice(ctx.user.id, input.creditCardId, month, year);
+      // Garantir que subcategoryId e notes sejam null (não undefined nem string vazia)
+      const subcategoryId = (item.subcategoryId != null && item.subcategoryId !== undefined) ? item.subcategoryId : null;
+      const notes = (item.notes && String(item.notes).trim() !== '') ? String(item.notes).trim() : null;
       await db.addItemToInvoice({
         userId: ctx.user.id,
         invoiceId: invoice.id,
@@ -681,9 +684,9 @@ const importCsvRouter = router({
         description: item.description,
         amount: item.amount,
         parentCategory: item.category,
-        subcategoryId: item.subcategoryId ?? null,
+        subcategoryId,
         purchaseDate: isoDate as unknown as Date,
-        notes: item.notes ?? null,
+        notes,
         installments: 1,
         currentInstallment: 1,
         totalInstallments: 1,
