@@ -211,10 +211,13 @@ export default function CreditCards() {
     const subcatId = editItemForm.subcategoryId ? parseInt(editItemForm.subcategoryId) : undefined;
     const subcat = subcatId ? allSubcats.find(s => s.id === subcatId) : undefined;
     const group = subcat ? expenseGroups.find(g => g.id === subcat.groupId) : undefined;
-    const groupToEnum: Record<string, string> = {
-      'necessidades': 'habitacao', 'desejos': 'lazer', 'investimentos': 'financeiro',
+    // Usar ID do grupo para derivar parentCategory (mais confiável que comparar nomes)
+    const groupIdToEnum: Record<number, string> = {
+      1: 'habitacao', // Gastos necessários
+      2: 'lazer',     // Gastos não necessários
+      3: 'financeiro', // Investimentos (se existir)
     };
-    const parentCategory = group ? (groupToEnum[group.name.toLowerCase()] || 'outros') : 'outros';
+    const parentCategory = group ? (groupIdToEnum[group.id] || 'outros') : 'outros';
     updateItemMutation.mutate({
       itemId: editItemId,
       description: editItemForm.description,
@@ -270,11 +273,13 @@ export default function CreditCards() {
     const subcatId = itemForm.subcategoryId ? parseInt(itemForm.subcategoryId) : undefined;
     const subcat = subcatId ? allSubcats.find(s => s.id === subcatId) : undefined;
     const group = subcat ? expenseGroups.find(g => g.id === subcat.groupId) : undefined;
-    // Map group name to parentCategory enum
-    const groupToEnum: Record<string, string> = {
-      'necessidades': 'habitacao', 'desejos': 'lazer', 'investimentos': 'financeiro',
+    // Usar ID do grupo para derivar parentCategory (mais confiável que comparar nomes)
+    const groupIdToEnum: Record<number, string> = {
+      1: 'habitacao', // Gastos necessários
+      2: 'lazer',     // Gastos não necessários
+      3: 'financeiro', // Investimentos (se existir)
     };
-    const parentCategory = group ? (groupToEnum[group.name.toLowerCase()] || 'outros') : 'outros';
+    const parentCategory = group ? (groupIdToEnum[group.id] || 'outros') : 'outros';
     addItemMutation.mutate({
       invoiceId: targetInvoiceId,
       creditCardId: selectedCardId,
@@ -560,7 +565,17 @@ export default function CreditCards() {
                             </Badge>
                           )}
                           <Badge variant="outline" className="text-xs shrink-0 capitalize">
-                            {EXPENSE_CATEGORIES.find(c => c.value === item.parentCategory)?.label || item.parentCategory}
+                            {(() => {
+                              // Se parentCategory for 'outros' mas houver subcategoria, derivar da subcategoria
+                              let cat = item.parentCategory;
+                              if (cat === 'outros' && item.subcategoryId) {
+                                const subcat = allSubcats.find((s: any) => s.id === item.subcategoryId);
+                                const group = subcat ? expenseGroups.find((g: any) => g.id === subcat.groupId) : undefined;
+                                const groupIdToEnum: Record<number, string> = { 1: 'habitacao', 2: 'lazer', 3: 'financeiro' };
+                                if (group) cat = (groupIdToEnum[group.id] || 'outros') as typeof cat;
+                              }
+                              return EXPENSE_CATEGORIES.find(c => c.value === cat)?.label || cat;
+                            })()} 
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
