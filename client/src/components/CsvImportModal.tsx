@@ -255,7 +255,21 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
   };
 
   const updateRow = (id: string, field: keyof ParsedRow, value: string | number | boolean) => {
-    setRows(prev => prev.map(r => r.id === id ? { ...r, [field]: value, edited: field !== "selected" ? true : r.edited } : r));
+    setRows(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const updated = { ...r, [field]: value, edited: field !== "selected" ? true : r.edited };
+      // Quando subcategoryId muda, recalcular parentCategory automaticamente
+      if (field === "subcategoryId" && typeof value === "number" && value > 0) {
+        const subcat = allSubcats.find((s: any) => s.id === value);
+        const group = subcat ? expenseGroups.find((g: any) => g.id === subcat.groupId) : undefined;
+        const groupToEnum: Record<string, string> = {
+          'necessidades': 'habitacao', 'desejos': 'lazer', 'investimentos': 'financeiro',
+        };
+        const derivedCategory = group ? (groupToEnum[group.name.toLowerCase()] || 'outros') : 'outros';
+        updated.category = derivedCategory;
+      }
+      return updated;
+    }));
   };
 
   const toggleAll = (selected: boolean) => {

@@ -184,12 +184,19 @@ export default function CreditCards() {
   function handleEditItem(e: React.FormEvent) {
     e.preventDefault();
     if (!editItemId || !editItemForm.description || !editItemForm.amount) return toast.error('Preencha os campos obrigatórios');
+    const subcatId = editItemForm.subcategoryId ? parseInt(editItemForm.subcategoryId) : undefined;
+    const subcat = subcatId ? allSubcats.find(s => s.id === subcatId) : undefined;
+    const group = subcat ? expenseGroups.find(g => g.id === subcat.groupId) : undefined;
+    const groupToEnum: Record<string, string> = {
+      'necessidades': 'habitacao', 'desejos': 'lazer', 'investimentos': 'financeiro',
+    };
+    const parentCategory = group ? (groupToEnum[group.name.toLowerCase()] || 'outros') : 'outros';
     updateItemMutation.mutate({
       itemId: editItemId,
       description: editItemForm.description,
       amount: editItemForm.amount,
-      parentCategory: 'outros',
-      subcategoryId: editItemForm.subcategoryId ? parseInt(editItemForm.subcategoryId) : null,
+      parentCategory: parentCategory as any,
+      subcategoryId: subcatId ?? null,
       purchaseDate: editItemForm.purchaseDate,
       notes: editItemForm.notes || null,
     });
