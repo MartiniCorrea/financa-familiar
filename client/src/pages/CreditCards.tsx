@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Plus, Trash2, Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight, CheckCircle2, PlusCircle, X, RotateCcw, Repeat, FileUp } from "lucide-react";
+import { Plus, Trash2, Pencil, CreditCard, Receipt, ChevronLeft, ChevronRight, CheckCircle2, PlusCircle, X, RotateCcw, Repeat, FileUp, CornerDownLeft, Wallet } from "lucide-react";
 import { useState, useMemo } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
@@ -51,6 +51,7 @@ const emptyItemForm: ItemForm = { description: '', amount: '', subcategoryId: ''
 
 function statusBadge(status: string) {
   if (status === 'paga') return <Badge className="bg-emerald-400/20 text-emerald-400 border-0">Paga</Badge>;
+  if (status === 'parcialmente_paga') return <Badge className="bg-teal-400/20 text-teal-400 border-0">Parcialmente Paga</Badge>;
   if (status === 'fechada') return <Badge className="bg-amber-400/20 text-amber-400 border-0">Fechada</Badge>;
   return <Badge className="bg-blue-400/20 text-blue-400 border-0">Aberta</Badge>;
 }
@@ -148,6 +149,16 @@ export default function CreditCards() {
 
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payBankAccountId, setPayBankAccountId] = useState<string>('');
+  const [payAmount, setPayAmount] = useState<string>('');
+  const [payMode, setPayMode] = useState<'full' | 'partial'>('full');
+
+  // Estorno
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [refundTargetItem, setRefundTargetItem] = useState<any>(null);
+  const [refundAmount, setRefundAmount] = useState<string>('');
+  const [refundDesc, setRefundDesc] = useState<string>('');
+  const [refundDate, setRefundDate] = useState<string>(getTodayString());
+  const [refundNotes, setRefundNotes] = useState<string>('');
 
   const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
 
@@ -223,6 +234,40 @@ export default function CreditCards() {
     });
   }
 
+  const addRefundMutation = trpc.creditCardInvoices.addRefundItem.useMutation({
+    onSuccess: () => {
+      utils.creditCardInvoices.list.invalidate();
+      utils.creditCardInvoices.getItems.invalidate();
+      setRefundDialogOpen(false);
+      setRefundTargetItem(null);
+      setRefundAmount('');
+      setRefundDesc('');
+      setRefundNotes('');
+      toast.success('Estorno registrado com sucesso!');
+    },
+    onError: (e) => toast.error(e.message || 'Erro ao registrar estorno'),
+  });
+
+  const partialPayMutation = trpc.creditCardInvoices.partialPayInvoice.useMutation({
+    onSuccess: (result) => {
+      utils.creditCardInvoices.list.invalidate();
+      utils.creditCardInvoices.getItems.invalidate();
+      utils.bills.list.invalidate();
+      utils.bankAccounts.listWithBalance.invalidate();
+      utils.expenses.list.invalidate();
+      setPayDialogOpen(false);
+      setPayBankAccountId('');
+      setPayAmount('');
+      setPayMode('full');
+      if (result.type === 'full') {
+        toast.success('Fatura paga integralmente!');
+      } else {
+        toast.success(`Adiantamento de ${formatCurrency(result.paidAmount)} registrado. Saldo devedor: ${formatCurrency(result.remaining)}`);
+      }
+    },
+    onError: (e) => toast.error(e.message || 'Erro ao registrar pagamento'),
+  });
+
   const reversePaymentMutation = trpc.creditCardInvoices.reversePayment.useMutation({
     onSuccess: () => {
       utils.creditCardInvoices.list.invalidate();
@@ -250,9 +295,44 @@ export default function CreditCards() {
 
   function handlePayInvoice() {
     if (!currentInvoice) return;
-    payInvoiceMutation.mutate({
+    if (payMode === 'partial') {
+      const amt = parseFloat(payAmount);
+      if (!payAmount || isNaN(amt) || amt <= 0) return toast.error('Informe um valor válido para o adiantamento');
+      partialPayMutation.mutate({
+        invoiceId: currentInvoice.id,
+        amount: amt,
+        bankAccountId: payBankAccountId && payBankAccountId !== 'none' ? parseInt(payBankAccountId) : null,
+      });
+    } else {
+      payInvoiceMutation.mutate({
+        invoiceId: currentInvoice.id,
+        bankAccountId: payBankAccountId && payBankAccountId !== 'none' ? parseInt(payBankAccountId) : null,
+      });
+    }
+  }
+
+  function openRefundDialog(item: any) {
+    setRefundTargetItem(item);
+    setRefundAmount(String(item.amount));
+    setRefundDesc(`Estorno: ${item.description}`);
+    setRefundDate(getTodayString());
+    setRefundNotes('');
+    setRefundDialogOpen(true);
+  }
+
+  function handleAddRefund(e: React.FormEvent) {
+    e.preventDefault();
+    if (!refundTargetItem || !currentInvoice || !selectedCardId) return;
+    const amt = parseFloat(refundAmount);
+    if (!refundAmount || isNaN(amt) || amt <= 0) return toast.error('Informe um valor válido');
+    addRefundMutation.mutate({
       invoiceId: currentInvoice.id,
-      bankAccountId: payBankAccountId ? parseInt(payBankAccountId) : null,
+      creditCardId: selectedCardId,
+      originalItemId: refundTargetItem.id,
+      description: refundDesc,
+      amount: refundAmount,
+      purchaseDate: refundDate,
+      notes: refundNotes || null,
     });
   }
 
@@ -460,23 +540,85 @@ export default function CreditCards() {
                       {reversePaymentMutation.isPending ? 'Estornando...' : 'Estornar Pagamento'}
                     </Button>
                   )}
-                  {currentInvoice && currentInvoice.status !== 'paga' && items.length > 0 && (
+                  {currentInvoice && (currentInvoice.status === 'aberta' || currentInvoice.status === 'fechada' || currentInvoice.status === 'parcialmente_paga') && items.length > 0 && (
                     <>
                       <Button
                         className="gap-2 bg-emerald-600 hover:bg-emerald-700"
-                        onClick={() => { setPayBankAccountId(''); setPayDialogOpen(true); }}
+                        onClick={() => { setPayBankAccountId(''); setPayAmount(''); setPayMode('full'); setPayDialogOpen(true); }}
                       >
-                        <CheckCircle2 className="w-4 h-4" /> Pagar Fatura
+                        <CheckCircle2 className="w-4 h-4" />
+                        {currentInvoice.status === 'parcialmente_paga' ? 'Continuar Pagamento' : 'Pagar Fatura'}
                       </Button>
                       <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
                         <DialogContent className="max-w-md">
                           <DialogHeader>
-                            <DialogTitle>Pagar Fatura</DialogTitle>
+                            <DialogTitle className="flex items-center gap-2">
+                              <Wallet className="w-5 h-5" />
+                              {currentInvoice.status === 'parcialmente_paga' ? 'Continuar Pagamento da Fatura' : 'Pagar Fatura'}
+                            </DialogTitle>
                           </DialogHeader>
                           <div className="space-y-4 py-2">
-                            <p className="text-sm text-muted-foreground">
-                              Total da fatura: <strong className="text-foreground">{formatCurrency(parseFloat(currentInvoice.totalAmount as string))}</strong>
-                            </p>
+                            <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">Total da fatura:</span>
+                                <strong className="text-foreground">{formatCurrency(parseFloat(String(currentInvoice.totalAmount)))}</strong>
+                              </div>
+                              {currentInvoice.status === 'parcialmente_paga' && (
+                                <>
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-muted-foreground">Já pago:</span>
+                                    <span className="text-emerald-400">{formatCurrency(parseFloat(String(currentInvoice.paidAmount || '0')))}</span>
+                                  </div>
+                                  <div className="flex justify-between text-sm font-semibold">
+                                    <span className="text-muted-foreground">Saldo devedor:</span>
+                                    <span className="text-red-400">{formatCurrency(parseFloat(String(currentInvoice.totalAmount)) - parseFloat(String(currentInvoice.paidAmount || '0')))}</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                            {/* Modo de pagamento */}
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setPayMode('full')}
+                                className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                                  payMode === 'full'
+                                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400'
+                                    : 'border-border text-muted-foreground hover:border-muted-foreground'
+                                }`}
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 inline mr-1.5" />
+                                Pagar total
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPayMode('partial')}
+                                className={`flex-1 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+                                  payMode === 'partial'
+                                    ? 'border-teal-500 bg-teal-500/10 text-teal-400'
+                                    : 'border-border text-muted-foreground hover:border-muted-foreground'
+                                }`}
+                              >
+                                <Wallet className="w-3.5 h-3.5 inline mr-1.5" />
+                                Adiantamento parcial
+                              </button>
+                            </div>
+                            {payMode === 'partial' && (
+                              <div className="space-y-1.5">
+                                <Label htmlFor="pay-partial-amount">Valor do adiantamento (R$)</Label>
+                                <Input
+                                  id="pay-partial-amount"
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  max={parseFloat(String(currentInvoice.totalAmount)) - parseFloat(String(currentInvoice.paidAmount || '0'))}
+                                  value={payAmount}
+                                  onChange={e => setPayAmount(e.target.value)}
+                                  placeholder="Ex: 500.00"
+                                />
+                                <p className="text-xs text-muted-foreground">O valor será lançado como despesa na conta selecionada. A fatura ficará com status <em>Parcialmente Paga</em>.</p>
+                              </div>
+                            )}
                             <div className="space-y-1.5">
                               <Label htmlFor="pay-account">Conta para débito</Label>
                               <Select value={payBankAccountId} onValueChange={setPayBankAccountId}>
@@ -494,18 +636,23 @@ export default function CreditCards() {
                               </Select>
                               <p className="text-xs text-muted-foreground">O valor será abatido do saldo da conta selecionada.</p>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                              Cada gasto será lançado em <strong>Despesas</strong> vinculado ao cartão {selectedCard.name}. A fatura será marcada como paga.
-                            </p>
+                            {payMode === 'full' && (
+                              <p className="text-xs text-muted-foreground">
+                                Cada gasto será lançado em <strong>Despesas</strong> vinculado ao cartão {selectedCard.name}. A fatura será marcada como paga.
+                              </p>
+                            )}
                           </div>
                           <div className="flex justify-end gap-2 pt-2">
                             <Button variant="outline" onClick={() => setPayDialogOpen(false)}>Cancelar</Button>
                             <Button
-                              className="bg-emerald-600 hover:bg-emerald-700"
+                              className={payMode === 'partial' ? 'bg-teal-600 hover:bg-teal-700' : 'bg-emerald-600 hover:bg-emerald-700'}
                               onClick={handlePayInvoice}
-                              disabled={payInvoiceMutation.isPending}
+                              disabled={payInvoiceMutation.isPending || partialPayMutation.isPending}
                             >
-                              {payInvoiceMutation.isPending ? 'Processando...' : 'Confirmar Pagamento'}
+                              {(payInvoiceMutation.isPending || partialPayMutation.isPending)
+                                ? 'Processando...'
+                                : payMode === 'partial' ? 'Registrar Adiantamento' : 'Confirmar Pagamento'
+                              }
                             </Button>
                           </div>
                         </DialogContent>
@@ -541,13 +688,21 @@ export default function CreditCards() {
                   <p className="text-xs mt-1">Clique em "Adicionar Gasto" para lançar um item.</p>
                 </div>
               ) : (
+                <>
                 <div className="space-y-2">
-                  {items.map(item => (
-                    <div key={item.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
+                  {items.map(item => {
+                    const isRefund = Number(item.isRefund) === 1;
+                    const itemAmount = parseFloat(String(item.amount));
+                    return (
+                    <div key={item.id} className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+                      isRefund ? 'bg-emerald-500/5 border border-emerald-500/20 hover:bg-emerald-500/10' : 'bg-muted/30 hover:bg-muted/50'
+                    }`}>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-sm text-foreground truncate">{item.description}</p>
-                          {item.totalInstallments > 1 && (
+                          {isRefund && <CornerDownLeft className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                          <p className={`font-medium text-sm truncate ${isRefund ? 'text-emerald-400' : 'text-foreground'}`}>{item.description}</p>
+                          {isRefund && <Badge className="text-xs shrink-0 bg-emerald-400/15 text-emerald-400 border-0">Estorno</Badge>}
+                          {!isRefund && item.totalInstallments > 1 && (
                             <Badge variant="outline" className="text-xs shrink-0">
                               {item.currentInstallment}/{item.totalInstallments}x
                             </Badge>
@@ -565,7 +720,8 @@ export default function CreditCards() {
                                   {group && <Badge variant="secondary" className="text-xs shrink-0 text-muted-foreground">{group.name}</Badge>}
                                 </>
                               );
-                              return <Badge variant="outline" className="text-xs shrink-0 text-muted-foreground">Sem categoria</Badge>;
+                              if (!isRefund) return <Badge variant="outline" className="text-xs shrink-0 text-muted-foreground">Sem categoria</Badge>;
+                              return null;
                             })()}
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">
@@ -574,11 +730,24 @@ export default function CreditCards() {
                         </p>
                       </div>
                       <div className="flex items-center gap-3 ml-3 shrink-0">
-                        <p className="font-semibold text-red-400">{formatCurrency(parseFloat(String(item.amount)))}</p>
+                        <p className={`font-semibold ${isRefund ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {isRefund ? '+' : ''}{formatCurrency(Math.abs(itemAmount))}
+                        </p>
                         <div className="flex items-center gap-1">
-                          <button onClick={() => openEditItem(item)} className="text-muted-foreground hover:text-blue-400 transition-colors p-1" title="Editar">
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
+                          {!isRefund && (
+                            <button
+                              onClick={() => openRefundDialog(item)}
+                              className="text-muted-foreground hover:text-emerald-400 transition-colors p-1"
+                              title="Registrar estorno"
+                            >
+                              <CornerDownLeft className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {!isRefund && (
+                            <button onClick={() => openEditItem(item)} className="text-muted-foreground hover:text-blue-400 transition-colors p-1" title="Editar">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => {
                               if (currentInvoice?.status === 'paga') {
@@ -593,12 +762,14 @@ export default function CreditCards() {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
+                </div>
                   <div className="flex justify-between items-center pt-2 border-t border-border">
                     <span className="text-sm font-medium text-muted-foreground">{items.length} item(s)</span>
                     <span className="font-bold text-foreground">{formatCurrency(totalItems)}</span>
                   </div>
-                </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -767,6 +938,82 @@ export default function CreditCards() {
               </Button>
             </div>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Estorno de Item */}
+      <Dialog open={refundDialogOpen} onOpenChange={setRefundDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CornerDownLeft className="w-5 h-5 text-emerald-400" />
+              Registrar Estorno
+            </DialogTitle>
+          </DialogHeader>
+          {refundTargetItem && (
+            <form onSubmit={handleAddRefund} className="space-y-4 mt-2">
+              <div className="p-3 rounded-lg bg-muted/50 text-sm space-y-1">
+                <p className="text-muted-foreground">Item original:</p>
+                <p className="font-medium text-foreground">{refundTargetItem.description}</p>
+                <p className="text-red-400 font-semibold">{formatCurrency(parseFloat(String(refundTargetItem.amount)))}</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="refund-desc">Descrição do estorno *</Label>
+                <Input
+                  id="refund-desc"
+                  value={refundDesc}
+                  onChange={e => setRefundDesc(e.target.value)}
+                  placeholder="Ex: Estorno: Supermercado"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="refund-amount">Valor do estorno (R$) *</Label>
+                  <Input
+                    id="refund-amount"
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    max={parseFloat(String(refundTargetItem.amount))}
+                    value={refundAmount}
+                    onChange={e => setRefundAmount(e.target.value)}
+                    placeholder="0.00"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">Máx: {formatCurrency(parseFloat(String(refundTargetItem.amount)))}</p>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="refund-date">Data do estorno *</Label>
+                  <Input
+                    id="refund-date"
+                    type="date"
+                    value={refundDate}
+                    onChange={e => setRefundDate(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="refund-notes">Observações <span className="text-xs text-muted-foreground">(opcional)</span></Label>
+                <Input
+                  id="refund-notes"
+                  value={refundNotes}
+                  onChange={e => setRefundNotes(e.target.value)}
+                  placeholder="Ex: Produto devolvido"
+                />
+              </div>
+              <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-400">
+                O estorno aparecerá como crédito (valor positivo em verde) na fatura e reduzirá o total.
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setRefundDialogOpen(false)}>Cancelar</Button>
+                <Button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-700" disabled={addRefundMutation.isPending}>
+                  {addRefundMutation.isPending ? 'Registrando...' : 'Confirmar Estorno'}
+                </Button>
+              </div>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
     </div>

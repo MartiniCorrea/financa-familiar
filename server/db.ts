@@ -1595,3 +1595,147 @@ export async function updateImportSessionStatus(
     .set({ status })
     .where(and(eq(importSessions.id, sessionId), eq(importSessions.userId, userId)));
 }
+
+// ─── Estorno de Item de Cartão ────────────────────────────────────────────────
+/**
+ * Adiciona um item de estorno na fatura.
+ * O estorno é um item com valor negativo (amount negativo) que cancela total ou parcialmente
+ * um item original. Aparece como crédito na fatura.
+ */
+export async function addRefundItem(
+  userId: number,
+  invoiceId: number,
+  creditCardId: number,
+  originalItemId: number,
+  description: string,
+  amount: string,   // valor positivo — será armazenado como negativo
+  purchaseDate: string,
+  notes?: string | null
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Verificar que o item original pertence ao usuário
+  const original = await db.select().from(creditCardItems)
+    .where(and(eq(creditCardItems.id, originalItemId), eq(creditCardItems.userId, userId)))
+    .limit(1);
+  if (original.length === 0) throw new Error("Item original não encontrado");
+
+  // Verificar que o valor do estorno não ultrapassa o item original
+  const originalAmount = parseFloat(String(original[0].amount));
+  const refundAmount = parseFloat(amount);
+  if (refundAmount <= 0) throw new Error("Valor do estorno deve ser positivo");
+  if (refundAmount > originalAmount) throw new Error(`Valor do estorno (${refundAmount}) não pode ser maior que o item original (${originalAmount})`);
+
+  // Inserir item de estorno com valor negativo
+  await db.insert(creditCardItems).values({
+    userId,
+    invoiceId,
+    creditCardId,
+    description,
+    amount: String(-refundAmount),  // negativo = crédito na fatura
+    parentCategory: original[0].parentCategory,
+    subcategoryId: original[0].subcategoryId,
+    purchaseDate: purchaseDate as any,
+    installments: 1,
+    currentInstallment: 1,
+    totalInstallments: 1,
+    notes: notes || null,
+    isRefund: 1,
+    refundItemId: originalItemId,
+  } as any);
+
+  await updateInvoiceTotal(invoiceId);
+  await syncInvoiceBill(userId, invoiceId);
+}
+
+// ─── Adiantamento Parcial de Fatura ──────────────────────────────────────────
+/**
+ * Registra um pagamento parcial da fatura.
+ * - Se amount >= totalAmount: paga a fatura inteira (comportamento igual ao payInvoice)
+ * - Se amount < totalAmount: registra pagamento parcial, status = 'parcialmente_paga',
+ *   lança despesa proporcional na conta bancária e atualiza paidAmount
+ */
+export async function partialPayInvoice(
+  invoiceId: number,
+  userId: number,
+  amount: number,
+  bankAccountId?: number | null
+) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  const invoiceRows = await db.select().from(creditCardInvoices)
+    .where(and(eq(creditCardInvoices.id, invoiceId), eq(creditCardInvoices.userId, userId)))
+    .limit(1);
+  if (invoiceRows.length === 0) throw new Error("Fatura não encontrada");
+  const inv = invoiceRows[0];
+  if (inv.status === 'paga') throw new Error("Fatura já foi paga integralmente");
+
+  const totalAmount = parseFloat(String(inv.totalAmount));
+  const alreadyPaid = parseFloat(String(inv.paidAmount || "0"));
+  const remaining = totalAmount - alreadyPaid;
+
+  if (amount <= 0) throw new Error("Valor do pagamento deve ser positivo");
+  if (amount > remaining) throw new Error(`Valor (${amount}) maior que o saldo devedor (${remaining})`);
+
+  const card = await db.select().from(creditCards).where(eq(creditCards.id, inv.creditCardId)).limit(1);
+  const cardName = card[0]?.name || 'Cartão';
+  const today = new Date().toISOString().split('T')[0];
+  const newPaidAmount = alreadyPaid + amount;
+  const isFullPayment = Math.abs(newPaidAmount - totalAmount) < 0.01;
+
+  // Lançar despesa na conta bancária pelo valor do adiantamento
+  if (bankAccountId) {
+    await db.insert(expenses).values({
+      userId,
+      description: isFullPayment
+        ? `Pagamento fatura ${cardName} (${MONTHS_PT[inv.month - 1]}/${inv.year})`
+        : `Adiantamento fatura ${cardName} (${MONTHS_PT[inv.month - 1]}/${inv.year}) — R$ ${amount.toFixed(2)}`,
+      amount: String(amount),
+      parentCategory: 'financeiro' as any,
+      date: today as any,
+      notes: `[Cartão ${cardName}] Adiantamento parcial`,
+      sourceType: 'normal' as any,
+      bankAccountId,
+    });
+  }
+
+  if (isFullPayment) {
+    // Pagamento completo — marcar como paga e lançar todos os itens
+    const items = await db.select().from(creditCardItems).where(eq(creditCardItems.invoiceId, invoiceId));
+    for (const item of items) {
+      if (Number(item.isRefund) === 1) continue; // não lançar estornos como despesa
+      await db.insert(expenses).values({
+        userId,
+        description: item.description,
+        amount: item.amount as string,
+        parentCategory: item.parentCategory as any,
+        subcategoryId: item.subcategoryId,
+        date: today as any,
+        notes: item.notes ? `[Cartão ${cardName}] ${item.notes}` : `[Cartão ${cardName}]`,
+        sourceType: 'cartao_credito' as any,
+        creditCardItemId: item.id,
+        installments: item.totalInstallments,
+        currentInstallment: item.currentInstallment,
+        bankAccountId: null, // já lançamos a despesa do pagamento acima
+      });
+    }
+    await db.update(creditCardInvoices)
+      .set({ status: 'paga', paidAmount: String(newPaidAmount), paidAt: new Date() })
+      .where(eq(creditCardInvoices.id, invoiceId));
+    if (inv.billId) {
+      await db.update(bills).set({ status: 'pago', paidAt: today as any, ...(bankAccountId ? { bankAccountId } : {}) })
+        .where(eq(bills.id, inv.billId));
+    }
+    return { type: 'full', paidAmount: newPaidAmount, remaining: 0 };
+  } else {
+    // Pagamento parcial
+    await db.update(creditCardInvoices)
+      .set({ status: 'parcialmente_paga', paidAmount: String(newPaidAmount) })
+      .where(eq(creditCardInvoices.id, invoiceId));
+    return { type: 'partial', paidAmount: newPaidAmount, remaining: totalAmount - newPaidAmount };
+  }
+}
+
+const MONTHS_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];

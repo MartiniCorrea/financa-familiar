@@ -402,7 +402,8 @@ export const creditCardInvoices = mysqlTable("credit_card_invoices", {
   closingDate: date("closingDate"),
   dueDate: date("dueDate"),
   totalAmount: decimal("totalAmount", { precision: 15, scale: 2 }).notNull().default("0"),
-  status: mysqlEnum("status", ["aberta", "fechada", "paga"]).notNull().default("aberta"),
+  status: mysqlEnum("status", ["aberta", "fechada", "paga", "parcialmente_paga"]).notNull().default("aberta"),
+  paidAmount: decimal("paidAmount", { precision: 15, scale: 2 }).default("0"),  // valor já pago (adiantamentos)
   billId: int("billId"),
   paidAt: timestamp("paidAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
@@ -430,6 +431,8 @@ export const creditCardItems = mysqlTable("credit_card_items", {
   totalInstallments: int("totalInstallments").notNull().default(1),
   notes: text("notes"),
   isRecurring: tinyint("isRecurring").notNull().default(0),
+  isRefund: tinyint("isRefund").notNull().default(0),       // 1 = este item é um estorno
+  refundItemId: int("refundItemId"),                         // id do item original que está sendo estornado
   expenseId: int("expenseId"),
   recurringRuleId: int("recurringRuleId"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),

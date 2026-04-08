@@ -50,6 +50,13 @@
       "when": 1775598694543,
       "tag": "0006_premium_scrambler",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1775614262071,
+      "tag": "0007_hesitant_juggernaut",
+      "breakpoints": true
     }
   ]
 }

@@ -506,9 +506,36 @@ const creditCardInvoicesRouter = router({
     invoiceId: z.number(),
     bankAccountId: z.number().optional().nullable(),
   })).mutation(({ ctx, input }) => db.payInvoice(input.invoiceId, ctx.user.id, input.bankAccountId)),
-   reversePayment: protectedProcedure.input(z.object({
+  reversePayment: protectedProcedure.input(z.object({
     invoiceId: z.number(),
   })).mutation(({ ctx, input }) => db.reverseInvoicePayment(input.invoiceId, ctx.user.id)),
+  addRefundItem: protectedProcedure.input(z.object({
+    invoiceId: z.number(),
+    creditCardId: z.number(),
+    originalItemId: z.number(),
+    description: z.string().min(1).max(255),
+    amount: z.string(),
+    purchaseDate: z.string(),
+    notes: z.string().optional().nullable(),
+  })).mutation(({ ctx, input }) =>
+    db.addRefundItem(
+      ctx.user.id,
+      input.invoiceId,
+      input.creditCardId,
+      input.originalItemId,
+      input.description,
+      input.amount,
+      input.purchaseDate,
+      input.notes
+    )
+  ),
+  partialPayInvoice: protectedProcedure.input(z.object({
+    invoiceId: z.number(),
+    amount: z.number().positive(),
+    bankAccountId: z.number().optional().nullable(),
+  })).mutation(({ ctx, input }) =>
+    db.partialPayInvoice(input.invoiceId, ctx.user.id, input.amount, input.bankAccountId)
+  ),
 });
 // ─── Recurring Router ───────────────────────────────────────────────────────────────────────────────────────────
 const recurringRouter = router({
