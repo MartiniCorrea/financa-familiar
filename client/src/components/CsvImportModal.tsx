@@ -379,7 +379,7 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione a conta..." />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent disablePortal>
                     <SelectItem value="none">Nenhuma conta</SelectItem>
                     {bankAccounts.map((acc: any) => (
                       <SelectItem key={acc.id} value={String(acc.id)}>{acc.name} — {acc.bank}</SelectItem>
@@ -471,7 +471,7 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
                             <SelectTrigger className="h-7 text-xs w-36">
                               <SelectValue />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent disablePortal>
                               {CATEGORY_OPTIONS.map(opt => (
                                 <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
                               ))}
@@ -507,7 +507,7 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
                                     <SelectTrigger className="h-7 text-xs">
                                       <SelectValue />
                                     </SelectTrigger>
-                                    <SelectContent>
+                                    <SelectContent disablePortal>
                                       {PAYMENT_METHODS.map(opt => (
                                         <SelectItem key={opt.value} value={opt.value} className="text-xs">{opt.label}</SelectItem>
                                       ))}
@@ -524,7 +524,7 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
                                   <SelectTrigger className="h-7 text-xs">
                                     <SelectValue placeholder="Sem subcategoria" />
                                   </SelectTrigger>
-                                  <SelectContent>
+                                  <SelectContent disablePortal>
                                     <SelectItem value="none" className="text-xs">Sem subcategoria</SelectItem>
                                     {expenseGroups.map(group => {
                                       const subs = allSubcats.filter(s => s.groupId === group.id);
