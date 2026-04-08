@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Upload, FileText, Sparkles, Check, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export type CsvImportMode = "expenses" | "creditCard";
+export type CsvImportMode = "expenses" | "creditCard" | "bankStatement";
 
 interface ParsedRow {
   id: string;
@@ -35,6 +35,16 @@ interface CsvImportModalProps {
   creditCardId?: number;
   bankAccountId?: number;
   onSuccess?: () => void;
+}
+
+// Detecta forma de pagamento a partir da descrição do extrato Nubank
+function detectPaymentMethod(description: string): string {
+  const lower = description.toLowerCase();
+  if (lower.includes('pix')) return 'pix';
+  if (lower.includes('transferência') || lower.includes('transferencia')) return 'transferencia';
+  if (lower.includes('débito') || lower.includes('debito') || lower.includes('compra no débito')) return 'debito';
+  if (lower.includes('boleto')) return 'boleto';
+  return 'debito'; // padrão para extrato bancário
 }
 
 // ─── Category labels ──────────────────────────────────────────────────────────
@@ -91,7 +101,7 @@ function parseAmount(raw: string): number | null {
   return isNaN(val) ? null : val;
 }
 
-function parseCSV(text: string): ParsedRow[] {
+function parseCSV(text: string, mode: CsvImportMode = "expenses"): ParsedRow[] {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
 
@@ -153,13 +163,21 @@ function parseCSV(text: string): ParsedRow[] {
     const parsedVal = parseAmount(rawAmount);
     if (parsedVal === null || parsedVal === 0) continue;
 
-    // Ignorar linhas de pagamento/crédito (valor negativo = dinheiro recebido/estorno)
-    if (parsedVal < 0) continue;
+    // Para extrato bancário: aceitar apenas negativos (débitos); para cartão/despesas: apenas positivos
+    if (mode === "bankStatement" && parsedVal >= 0) continue; // ignora créditos/entradas
+    if (mode !== "bankStatement" && parsedVal < 0) continue; // ignora pagamentos no cartão
 
-    const absAmount = parsedVal.toFixed(2);
+    const absAmount = Math.abs(parsedVal).toFixed(2);
 
     // Limpar descrição de aspas extras do CSV
-    const description = rawDesc.replace(/^"|"$/g, "").trim() || rawIdentifier || `Transação ${i}`;
+    // Para extrato Nubank: remover prefixo "Compra no débito - "
+    let description = rawDesc.replace(/^"|"$/g, "").trim() || rawIdentifier || `Transação ${i}`;
+    if (mode === "bankStatement") {
+      description = description.replace(/^Compra no débito\s*-\s*/i, "").trim();
+    }
+
+    // Detectar forma de pagamento a partir da descrição original
+    const paymentMethod = mode === "bankStatement" ? detectPaymentMethod(rawDesc) : undefined;
 
     rows.push({
       id: `row-${i}`,
@@ -168,6 +186,7 @@ function parseCSV(text: string): ParsedRow[] {
       identifier: rawIdentifier || `TX${i}`,
       description,
       category: "outros",
+      paymentMethod,
       selected: true,
       edited: false,
     });
@@ -211,6 +230,8 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
     onError: (e) => toast.error(`Erro ao importar: ${e.message}`),
   });
 
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState<number | undefined>(bankAccountId);
+
   const handleFile = useCallback((file: File) => {
     if (!file.name.endsWith(".csv") && file.type !== "text/csv") {
       toast.error("Por favor, selecione um arquivo CSV.");
@@ -219,7 +240,7 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
-      const parsed = parseCSV(text);
+      const parsed = parseCSV(text, mode);
       if (parsed.length === 0) {
         toast.error("Nenhuma transação encontrada. Verifique o formato do arquivo.");
         return;
@@ -281,7 +302,7 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
       return;
     }
 
-    if (mode === "expenses") {
+    if (mode === "expenses" || mode === "bankStatement") {
       importExpensesMutation.mutate({
         expenses: selected.map(r => ({
           description: r.description,
@@ -289,8 +310,8 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
           date: r.date,
           parentCategory: r.category as any,
           subcategoryId: r.subcategoryId,
-          bankAccountId: bankAccountId,
-          paymentMethod: (r.paymentMethod as any) || "outros",
+          bankAccountId: mode === "bankStatement" ? selectedBankAccountId : bankAccountId,
+          paymentMethod: (r.paymentMethod as any) || (mode === "bankStatement" ? "debito" : "outros"),
           notes: r.notes,
         })),
       });
@@ -326,7 +347,7 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-primary" />
-            Importar {mode === "expenses" ? "Despesas" : "Fatura do Cartão"} via CSV
+            {mode === "bankStatement" ? "Importar Extrato Bancário" : mode === "expenses" ? "Importar Despesas" : "Importar Fatura do Cartão"} via CSV
           </DialogTitle>
         </DialogHeader>
 
@@ -348,13 +369,42 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
               <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
             </div>
 
+            {mode === "bankStatement" && (
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Conta bancária do extrato</label>
+                <Select
+                  value={selectedBankAccountId ? String(selectedBankAccountId) : "none"}
+                  onValueChange={v => setSelectedBankAccountId(v === "none" ? undefined : parseInt(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a conta..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Nenhuma conta</SelectItem>
+                    {bankAccounts.map((acc: any) => (
+                      <SelectItem key={acc.id} value={String(acc.id)}>{acc.name} — {acc.bank}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground space-y-1">
               <p className="font-medium text-foreground mb-2">Formatos suportados:</p>
               <div className="space-y-1">
-                <div className="flex items-center gap-1.5"><Badge variant="secondary" className="text-xs">Nubank</Badge> <span className="text-xs">date;title;amount (separador <code>;</code>, valores com ponto)</span></div>
-                <div className="flex items-center gap-1.5"><Badge variant="secondary" className="text-xs">Outros bancos</Badge> <span className="text-xs">data;descrição;valor ou data,descrição,valor</span></div>
+                {mode === "bankStatement" ? (
+                  <>
+                    <div className="flex items-center gap-1.5"><Badge variant="secondary" className="text-xs">Nubank</Badge> <span className="text-xs">Data;Valor;Descrição (separador <code>;</code>, débitos com valor negativo)</span></div>
+                    <div className="flex items-center gap-1.5"><Badge variant="secondary" className="text-xs">Outros bancos</Badge> <span className="text-xs">data;descrição;valor ou data,descrição,valor</span></div>
+                    <p className="mt-2 text-xs text-muted-foreground">Apenas débitos (valores negativos) são importados. Créditos, Pix recebidos e entradas são ignorados automaticamente. A forma de pagamento (Débito/PIX) é detectada automaticamente.</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-1.5"><Badge variant="secondary" className="text-xs">Nubank</Badge> <span className="text-xs">date;title;amount (separador <code>;</code>, valores com ponto)</span></div>
+                    <div className="flex items-center gap-1.5"><Badge variant="secondary" className="text-xs">Outros bancos</Badge> <span className="text-xs">data;descrição;valor ou data,descrição,valor</span></div>
+                    <p className="mt-2 text-xs text-muted-foreground">Datas aceitas: DD/MM/AAAA ou AAAA-MM-DD. Valores: formato americano (7.95) ou brasileiro (7,95). Linhas com valor negativo (pagamentos) são ignoradas automaticamente.</p>
+                  </>
+                )}
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">Datas aceitas: DD/MM/AAAA ou AAAA-MM-DD. Valores: formato americano (7.95) ou brasileiro (7,95). Linhas com valor negativo (pagamentos) são ignoradas automaticamente.</p>
             </div>
           </div>
         )}
@@ -450,9 +500,9 @@ export function CsvImportModal({ open, onOpenChange, mode, creditCardId, bankAcc
                                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Valor (R$)</label>
                                 <Input value={row.amount} onChange={e => updateRow(row.id, "amount", e.target.value)} className="h-7 text-xs" />
                               </div>
-                              {mode === "expenses" && (
-                                <div>
-                                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Forma de Pagamento</label>
+              {(mode === "expenses" || mode === "bankStatement") && (
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Forma de Pagamento</label>
                                   <Select value={row.paymentMethod || "outros"} onValueChange={v => updateRow(row.id, "paymentMethod", v)}>
                                     <SelectTrigger className="h-7 text-xs">
                                       <SelectValue />

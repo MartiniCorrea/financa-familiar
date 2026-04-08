@@ -59,6 +59,7 @@ export default function Expenses() {
   const [detailNotes, setDetailNotes] = useState('');
   const [savingNotes, setSavingNotes] = useState(false);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
+  const [bankStatementOpen, setBankStatementOpen] = useState(false);
 
   const utils = trpc.useUtils();
   const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
@@ -172,6 +173,9 @@ export default function Expenses() {
           <p className="text-muted-foreground text-sm mt-1">Controle todos os seus gastos</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setBankStatementOpen(true)} className="gap-2">
+            <FileUp className="w-4 h-4" /> Importar Extrato
+          </Button>
           <Button variant="outline" onClick={() => setCsvImportOpen(true)} className="gap-2">
             <FileUp className="w-4 h-4" /> Importar CSV
           </Button>
@@ -320,6 +324,13 @@ export default function Expenses() {
         open={csvImportOpen}
         onOpenChange={setCsvImportOpen}
         mode="expenses"
+        bankAccountId={accountFilter !== 'all' ? parseInt(accountFilter) : undefined}
+        onSuccess={() => { utils.expenses.list.invalidate(); utils.dashboard.summary.invalidate(); }}
+      />
+      <CsvImportModal
+        open={bankStatementOpen}
+        onOpenChange={setBankStatementOpen}
+        mode="bankStatement"
         bankAccountId={accountFilter !== 'all' ? parseInt(accountFilter) : undefined}
         onSuccess={() => { utils.expenses.list.invalidate(); utils.dashboard.summary.invalidate(); }}
       />

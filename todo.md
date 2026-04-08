@@ -319,3 +319,10 @@
 - [x] Frontend: componente CsvImportModal reutilizável com upload, prévia editável e categorização via IA
 - [x] Despesas: botão "Importar CSV" no cabeçalho da página
 - [x] Cartões: botão "Importar CSV" ao lado do botão "Adicionar Gasto" na fatura
+
+## Módulo v37 — Importação de Extrato Bancário na aba Despesas
+- [ ] Componente BankStatementImportModal (parser CSV Nubank: Data;Valor;Descrição)
+- [ ] Tabela de revisão com categorização por subcategoria antes de importar
+- [ ] Backend: procedure importBankStatement no routers.ts
+- [ ] Botão "Importar Extrato" na página Expenses.tsx
+- [ ] Ignorar créditos/entradas (valores positivos) — apenas débitos viram despesas
