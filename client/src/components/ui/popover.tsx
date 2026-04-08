@@ -25,6 +25,7 @@ function PopoverContent({
     <PopoverPrimitive.Portal>
       <PopoverPrimitive.Content
         data-slot="popover-content"
+        translate="no"
         align={align}
         sideOffset={sideOffset}
         className={cn(
