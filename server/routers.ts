@@ -151,7 +151,35 @@ const billsRouter = router({
     notes: z.string().optional(),
   })).mutation(({ ctx, input }) => { const { id, ...data } = input; return db.updateBill(id, ctx.user.id, data as any); }),
   delete: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.deleteBill(input.id, ctx.user.id)),
-  markAsPaid: protectedProcedure.input(z.object({ id: z.number() })).mutation(({ ctx, input }) => db.markBillAsPaid(input.id, ctx.user.id)),
+  markAsPaid: protectedProcedure.input(z.object({
+    id: z.number(),
+    paidDate: z.string().optional(),
+    bankAccountId: z.number().nullable().optional(),
+  })).mutation(({ ctx, input }) => db.markBillAsPaid(input.id, ctx.user.id, input.paidDate, input.bankAccountId)),
+  // Cria um bill pendente a partir do formulário de despesas (quando isPaid=false)
+  createFromExpense: protectedProcedure.input(z.object({
+    description: z.string().min(1).max(255),
+    amount: z.string(),
+    dueDate: z.string(),
+    parentCategory: z.enum(["habitacao","alimentacao","saude","educacao","transporte","vestuario","lazer","financeiro","utilidades","pessoal","outros"]).optional(),
+    subcategoryId: z.number().optional(),
+    bankAccountId: z.number().optional(),
+    paymentMethod: z.enum(["dinheiro","debito","credito","pix","transferencia","boleto","outros"]).optional(),
+    notes: z.string().optional(),
+  })).mutation(({ ctx, input }) => {
+    const { parentCategory, subcategoryId, bankAccountId, paymentMethod, ...rest } = input;
+    return db.createBill({
+      ...rest,
+      userId: ctx.user.id,
+      type: 'pagar',
+      status: 'pendente',
+      category: parentCategory as any,
+      parentCategory: parentCategory as any,
+      paymentMethod: paymentMethod as any,
+      bankAccountId: bankAccountId ?? null,
+      expenseData: JSON.stringify({ subcategoryId, bankAccountId, paymentMethod, parentCategory }),
+    } as any);
+  }),
 });
 
 // ─── Credit Cards Router ──────────────────────────────────────────────────────

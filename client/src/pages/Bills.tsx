@@ -8,17 +8,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Trash2, CheckCircle, Receipt, ArrowDownRight, ArrowUpRight, Clock, AlertTriangle, Layers } from "lucide-react";
+import { Plus, Trash2, CheckCircle, Receipt, ArrowDownRight, ArrowUpRight, Clock, AlertTriangle, Layers, ShoppingCart } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 type BillForm = { description: string; amount: string; type: 'pagar' | 'receber'; dueDate: string; notes: string; subcategoryId: string; bankAccountId: string; };
 const emptyForm: BillForm = { description: '', amount: '', type: 'pagar', dueDate: getTodayString(), notes: '', subcategoryId: '', bankAccountId: '' };
 
+type PayDialog = { billId: number; description: string; amount: string; hasExpenseData: boolean; bankAccountId?: number | null };
+
 export default function Bills() {
   const [tab, setTab] = useState('pendente');
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<BillForm>(emptyForm);
+  const [payDialog, setPayDialog] = useState<PayDialog | null>(null);
+  const [payDate, setPayDate] = useState(getTodayString());
+  const [payBankAccountId, setPayBankAccountId] = useState('');
 
   const utils = trpc.useUtils();
   const { data: bankAccounts = [] } = trpc.bankAccounts.list.useQuery();
@@ -34,7 +39,14 @@ export default function Bills() {
     onError: () => toast.error("Erro ao remover conta"),
   });
   const markPaidMutation = trpc.bills.markAsPaid.useMutation({
-    onSuccess: () => { utils.bills.list.invalidate(); utils.dashboard.summary.invalidate(); toast.success("Conta marcada como paga!"); },
+    onSuccess: () => {
+      utils.bills.list.invalidate();
+      utils.dashboard.summary.invalidate();
+      utils.expenses.list.invalidate();
+      utils.expenseGroups.summary.invalidate();
+      setPayDialog(null);
+      toast.success(payDialog?.hasExpenseData ? "Conta paga e despesa lançada automaticamente!" : "Conta marcada como paga!");
+    },
     onError: () => toast.error("Erro ao marcar como paga"),
   });
 
@@ -57,6 +69,27 @@ export default function Bills() {
       bankAccountId: form.bankAccountId ? parseInt(form.bankAccountId) : undefined,
     };
     createMutation.mutate(payload);
+  }
+
+  function openPayDialog(bill: any) {
+    setPayDate(getTodayString());
+    setPayBankAccountId(bill.bankAccountId ? String(bill.bankAccountId) : '');
+    setPayDialog({
+      billId: bill.id,
+      description: bill.description,
+      amount: bill.amount,
+      hasExpenseData: !!bill.expenseData,
+      bankAccountId: bill.bankAccountId,
+    });
+  }
+
+  function confirmPayment() {
+    if (!payDialog) return;
+    markPaidMutation.mutate({
+      id: payDialog.billId,
+      paidDate: payDate,
+      bankAccountId: payBankAccountId ? parseInt(payBankAccountId) : null,
+    });
   }
 
   function getStatusBadge(bill: any) {
@@ -223,14 +256,25 @@ export default function Bills() {
                 <div className="divide-y divide-border">
                   {bills.map(bill => {
                     const days = getDaysUntilDue(bill.dueDate);
+                    const isFromExpense = !!(bill as any).expenseData;
                     return (
                       <div key={bill.id} className="flex items-center justify-between p-4 hover:bg-accent/20 transition-colors group">
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${bill.type === 'pagar' ? 'bg-red-400/10' : 'bg-emerald-400/10'}`}>
-                            {bill.type === 'pagar' ? <ArrowDownRight className="w-4 h-4 text-red-400" /> : <ArrowUpRight className="w-4 h-4 text-emerald-400" />}
+                            {isFromExpense
+                              ? <ShoppingCart className="w-4 h-4 text-amber-400" />
+                              : bill.type === 'pagar'
+                                ? <ArrowDownRight className="w-4 h-4 text-red-400" />
+                                : <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+                            }
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{bill.description}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-sm font-medium text-foreground truncate">{bill.description}</p>
+                              {isFromExpense && (
+                                <Badge className="bg-amber-400/15 text-amber-400 border-0 text-xs shrink-0">Despesa</Badge>
+                              )}
+                            </div>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-xs text-muted-foreground">Vence {formatDate(bill.dueDate as any)}</span>
                               {bill.status === 'pendente' && days >= 0 && days <= 7 && (
@@ -246,7 +290,7 @@ export default function Bills() {
                           </span>
                           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {bill.status === 'pendente' && (
-                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => markPaidMutation.mutate({ id: bill.id })}>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openPayDialog(bill)}>
                                 <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
                               </Button>
                             )}
@@ -264,6 +308,58 @@ export default function Bills() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog de Confirmação de Pagamento */}
+      <Dialog open={!!payDialog} onOpenChange={v => { if (!v) setPayDialog(null); }}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Confirmar Pagamento</DialogTitle>
+          </DialogHeader>
+          {payDialog && (
+            <div className="space-y-4">
+              <div className="p-3 rounded-lg bg-muted/40 border border-border">
+                <p className="text-sm font-medium text-foreground">{payDialog.description}</p>
+                <p className="text-lg font-bold text-red-400 mt-1">{formatCurrency(payDialog.amount)}</p>
+              </div>
+              {payDialog.hasExpenseData && (
+                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-sm text-emerald-400">
+                  Esta despesa será lançada automaticamente em <strong>Despesas</strong> após o pagamento.
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <Label className="text-foreground">Data do Pagamento</Label>
+                <Input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="bg-input border-border text-foreground" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-foreground">Conta Bancária {payDialog.hasExpenseData ? '*' : '(opcional)'}</Label>
+                <Select value={payBankAccountId || 'none'} onValueChange={v => setPayBankAccountId(v === 'none' ? '' : v)}>
+                  <SelectTrigger className="bg-input border-border text-foreground">
+                    <SelectValue placeholder="Selecione a conta..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem conta específica</SelectItem>
+                    {bankAccounts.map((acc: any) => (
+                      <SelectItem key={acc.id} value={String(acc.id)}>{acc.name}{acc.bank ? ` — ${acc.bank}` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => setPayDialog(null)}>Cancelar</Button>
+                <Button
+                  type="button"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  disabled={markPaidMutation.isPending}
+                  onClick={confirmPayment}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  {markPaidMutation.isPending ? 'Salvando...' : 'Confirmar Pagamento'}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

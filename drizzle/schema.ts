@@ -176,6 +176,14 @@ export const bills = mysqlTable("bills", {
   isRecurring: boolean("isRecurring").default(false),
   recurringDay: int("recurringDay"),
   notes: text("notes"),
+  // Dados da despesa pendente (quando criada a partir do formulário de despesas com isPaid=false)
+  expenseData: text("expenseData"),  // JSON com paymentMethod, subcategoryId, bankAccountId, etc.
+  parentCategory: mysqlEnum("parentCategory", [
+    "habitacao", "alimentacao", "saude", "educacao",
+    "transporte", "vestuario", "lazer", "financeiro",
+    "utilidades", "pessoal", "outros"
+  ]),
+  paymentMethod: mysqlEnum("paymentMethod", ["dinheiro","debito","credito","pix","transferencia","boleto","outros"]),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

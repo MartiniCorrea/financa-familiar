@@ -35,12 +35,14 @@ type ExpenseForm = {
   paymentMethod: string; installments: string; notes: string;
   subcategoryId: string; bankAccountId: string;
   isRecurring: boolean; frequency: string; endDate: string;
+  isPaid: boolean; dueDate: string;
 };
 
 const emptyForm: ExpenseForm = {
   description: '', amount: '', date: getTodayString(),
   paymentMethod: 'outros', installments: '1', notes: '', subcategoryId: '', bankAccountId: '',
   isRecurring: false, frequency: 'monthly', endDate: '',
+  isPaid: true, dueDate: getTodayString(),
 };
 
 export default function Expenses() {
@@ -86,6 +88,10 @@ export default function Expenses() {
     onSuccess: () => { utils.recurring.list.invalidate(); toast.success("Recorrência criada! Os próximos lançamentos serão gerados automaticamente."); },
     onError: (err) => toast.error("Erro ao criar recorrência: " + err.message),
   });
+  const createFromExpenseMutation = trpc.bills.createFromExpense.useMutation({
+    onSuccess: () => { utils.bills.list.invalidate(); setOpen(false); setForm(emptyForm); toast.success("Despesa adicionada às Contas a Pagar!"); },
+    onError: () => toast.error("Erro ao criar conta a pagar"),
+  });
 
   const filtered = expenses.filter(e =>
     e.description.toLowerCase().includes(search.toLowerCase()) &&
@@ -95,7 +101,25 @@ export default function Expenses() {
 
   function handleSubmit(evt: React.FormEvent) {
     evt.preventDefault();
-    if (!form.description || !form.amount || !form.date) return toast.error("Preencha os campos obrigatórios");
+    if (!form.description || !form.amount) return toast.error("Preencha os campos obrigatórios");
+    if (form.isPaid && !form.date) return toast.error("Informe a data da despesa");
+    if (!form.isPaid && !form.dueDate) return toast.error("Informe a data de vencimento");
+    const subcategoryId = form.subcategoryId ? parseInt(form.subcategoryId) : undefined;
+    const bankAccountId = form.bankAccountId ? parseInt(form.bankAccountId) : undefined;
+    // Se não pago, envia para Contas a Pagar
+    if (!form.isPaid && !editId) {
+      createFromExpenseMutation.mutate({
+        description: form.description,
+        amount: form.amount,
+        dueDate: form.dueDate,
+        parentCategory: 'outros' as any,
+        subcategoryId,
+        bankAccountId,
+        paymentMethod: form.paymentMethod as any,
+        notes: form.notes || undefined,
+      });
+      return;
+    }
     const payload = {
       description: form.description,
       amount: form.amount,
@@ -104,8 +128,8 @@ export default function Expenses() {
       parentCategory: 'outros' as any,
       paymentMethod: form.paymentMethod as any,
       installments: parseInt(form.installments) || 1,
-      subcategoryId: form.subcategoryId ? parseInt(form.subcategoryId) : undefined,
-      bankAccountId: form.bankAccountId ? parseInt(form.bankAccountId) : undefined,
+      subcategoryId,
+      bankAccountId,
     };
     if (editId) {
       updateMutation.mutate({ id: editId, ...payload, bankAccountId: payload.bankAccountId ?? null });
@@ -153,6 +177,7 @@ export default function Expenses() {
       subcategoryId: expense.subcategoryId ? String(expense.subcategoryId) : '',
       bankAccountId: expense.bankAccountId ? String(expense.bankAccountId) : '',
       isRecurring: false, frequency: 'monthly', endDate: '',
+      isPaid: true, dueDate: getTodayString(),
     });
     setOpen(true);
   }
@@ -190,6 +215,34 @@ export default function Expenses() {
               <DialogTitle>{editId ? 'Editar Despesa' : 'Nova Despesa'}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+              {/* Toggle Pago / Não Pago */}
+              {!editId && (
+                <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/50 border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, isPaid: true }))}
+                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                      form.isPaid ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    ✔ Pago
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, isPaid: false }))}
+                    className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                      !form.isPaid ? 'bg-amber-500/20 shadow text-amber-400 border border-amber-500/30' : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    ⏳ Não Pago
+                  </button>
+                </div>
+              )}
+              {!form.isPaid && !editId && (
+                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm text-amber-400">
+                  Esta despesa será adicionada em <strong>Contas a Pagar</strong>. Quando você pagá-la, ela migrará automaticamente para Despesas.
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>Descrição *</Label>
                 <Input value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Ex: Supermercado, Conta de luz..." />
@@ -199,10 +252,17 @@ export default function Expenses() {
                   <Label>Valor (R$) *</Label>
                   <Input type="number" step="0.01" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} placeholder="0,00" />
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Data *</Label>
-                  <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-                </div>
+                {form.isPaid ? (
+                  <div className="space-y-1.5">
+                    <Label>Data do Pagamento *</Label>
+                    <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label>Data de Vencimento *</Label>
+                    <Input type="date" value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
+                  </div>
+                )}
               </div>
               {/* Categoria 50/30/20 */}
               <div className="space-y-1.5">

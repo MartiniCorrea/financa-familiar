@@ -196,12 +196,33 @@ export async function deleteBill(id: number, userId: number) {
   return db.delete(bills).where(and(eq(bills.id, id), eq(bills.userId, userId)));
 }
 
-export async function markBillAsPaid(id: number, userId: number) {
+export async function markBillAsPaid(id: number, userId: number, paidDate?: string, bankAccountId?: number | null) {
   const db = await getDb();
   if (!db) throw new Error("DB not available");
-  const today = new Date();
-  return db.update(bills).set({ status: 'pago', paidAt: today, updatedAt: new Date() })
+  // Buscar o bill para verificar se tem expenseData (despesa pendente)
+  const [bill] = await db.select().from(bills).where(and(eq(bills.id, id), eq(bills.userId, userId))).limit(1);
+  if (!bill) throw new Error("Conta não encontrada");
+  const paidAt = paidDate ? new Date(paidDate + 'T12:00:00') : new Date();
+  const paidAtStr = paidDate || paidAt.toISOString().split('T')[0];
+  // Se tem expenseData, criar despesa automaticamente
+  if (bill.expenseData) {
+    const extra = JSON.parse(bill.expenseData);
+    await db.insert(expenses).values({
+      userId,
+      description: bill.description,
+      amount: bill.amount,
+      date: paidAt as any,
+      parentCategory: (bill.parentCategory || extra.parentCategory || 'outros') as any,
+      subcategoryId: extra.subcategoryId ?? null,
+      bankAccountId: bankAccountId ?? extra.bankAccountId ?? null,
+      paymentMethod: (bill.paymentMethod || extra.paymentMethod || 'outros') as any,
+      notes: bill.notes ?? null,
+      sourceType: 'normal',
+    });
+  }
+  await db.update(bills).set({ status: 'pago', paidAt: paidAt as any, updatedAt: new Date() })
     .where(and(eq(bills.id, id), eq(bills.userId, userId)));
+  return { ok: true };
 }
 
 // ─── Credit Cards ─────────────────────────────────────────────────────────────
