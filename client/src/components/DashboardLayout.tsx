@@ -39,6 +39,7 @@ import {
   TrendingDown,
   TrendingUp,
   Users,
+  Settings,
   Wallet,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
@@ -79,6 +80,12 @@ const menuGroups = [
       { icon: ShoppingCart, label: "Mercado", path: "/mercado" },
       { icon: Fuel, label: "Combustível", path: "/combustivel" },
       { icon: Users, label: "Família", path: "/familia" },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { icon: Settings, label: "Configurações", path: "/configuracoes" },
     ],
   },
 ];

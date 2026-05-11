@@ -24,6 +24,7 @@ import FuelHistory from "./pages/FuelHistory";
 import ExpenseGroups from "./pages/ExpenseGroups";
 import BankAccounts from "./pages/BankAccounts";
 import Recurring from "./pages/Recurring";
+import Settings from "./pages/Settings";
 
 /** Verifica vencimentos uma vez por sessão (quando o usuário está logado) */
 function BillDueChecker() {
@@ -66,6 +67,7 @@ function AppRoutes() {
         <Route path="/familia" component={FamilyMembers} />
         <Route path="/contas-bancarias" component={BankAccounts} />
         <Route path="/recorrencias" component={Recurring} />
+        <Route path="/configuracoes" component={Settings} />
           <Route path="/404" component={NotFound} />
           <Route component={NotFound} />
         </Switch>

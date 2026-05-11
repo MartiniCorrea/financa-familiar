@@ -1760,3 +1760,30 @@ export async function partialPayInvoice(
 }
 
 const MONTHS_PT = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+// ─── Reset All Data ───────────────────────────────────────────────────────────
+export async function resetAllData(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB not available");
+
+  // Apagar todos os lançamentos do usuário (ordem importa por FK)
+  await db.delete(importTransactions).where(eq(importTransactions.userId, userId));
+  await db.delete(importSessions).where(eq(importSessions.userId, userId));
+  await db.delete(billNotifications).where(eq(billNotifications.userId, userId));
+  await db.delete(goalContributions).where(eq(goalContributions.userId, userId));
+  await db.delete(investmentTransactions).where(eq(investmentTransactions.userId, userId));
+  await db.delete(creditCardItems).where(eq(creditCardItems.userId, userId));
+  await db.delete(creditCardInvoices).where(eq(creditCardInvoices.userId, userId));
+  await db.delete(accountTransfers).where(eq(accountTransfers.userId, userId));
+  await db.delete(expenses).where(eq(expenses.userId, userId));
+  await db.delete(incomes).where(eq(incomes.userId, userId));
+  await db.delete(bills).where(eq(bills.userId, userId));
+  await db.delete(recurringRules).where(eq(recurringRules.userId, userId));
+
+  // Zerar saldo inicial das contas bancárias (manter as contas, apenas zerar o saldo inicial)
+  await db.update(bankAccounts)
+    .set({ initialBalance: '0' })
+    .where(eq(bankAccounts.userId, userId));
+
+  return { success: true };
+}

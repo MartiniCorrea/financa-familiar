@@ -7,8 +7,15 @@ import { invokeLLM } from "./_core/llm";
 import { z } from "zod";
 import * as db from "./db";
 
-// ─── Shared Schemas ───────────────────────────────────────────────────────────
+// ─── Shared Schemas ─────────────────────────────────────────────────────────────
 const monthYearSchema = z.object({ month: z.number().min(1).max(12), year: z.number().min(2000).max(2100) });
+
+// ─── Settings Router ─────────────────────────────────────────────────────────
+const settingsRouter = router({
+  resetAllData: protectedProcedure
+    .input(z.object({ confirmation: z.literal('RESETAR TUDO') }))
+    .mutation(({ ctx }) => db.resetAllData(ctx.user.id)),
+});
 
 // ─── Bank Accounts Router ─────────────────────────────────────────────────────────
 const bankAccountsRouter = router({
@@ -815,6 +822,7 @@ export const appRouter = router({
    recurring: recurringRouter,
   billAlerts: billAlertsRouter,
   importCsv: importCsvRouter,
+  settings: settingsRouter,
 });
 export type AppRouter = typeof appRouter;
 
