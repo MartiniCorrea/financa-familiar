@@ -193,8 +193,8 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
               {!isCollapsed && (
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
-                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 animate-pulse-glow"
-                    style={{ background: 'linear-gradient(135deg, oklch(0.65 0.25 270), oklch(0.68 0.22 210))' }}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: 'linear-gradient(135deg, oklch(0.52 0.24 268), oklch(0.55 0.20 290))', boxShadow: '0 2px 8px oklch(0.52 0.24 268 / 0.35)' }}
                   >
                     <DollarSign className="w-4 h-4 text-white" />
                   </div>
@@ -235,13 +235,14 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
                           className={`
                             h-9 rounded-xl transition-all duration-200 relative group
                             ${isActive
-                              ? 'text-white font-semibold'
-                              : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/80'
+                              ? 'font-semibold'
+                              : 'text-sidebar-foreground/55 hover:text-sidebar-foreground hover:bg-sidebar-accent'
                             }
                           `}
                           style={isActive ? {
-                            background: 'linear-gradient(135deg, oklch(0.65 0.25 270 / 0.85), oklch(0.68 0.22 210 / 0.70))',
-                            boxShadow: '0 2px 12px oklch(0.65 0.25 270 / 0.30)',
+                            background: 'linear-gradient(135deg, oklch(0.52 0.24 268 / 0.12), oklch(0.55 0.20 290 / 0.08))',
+                            color: 'oklch(0.42 0.22 268)',
+                            borderRight: '3px solid oklch(0.52 0.24 268)',
                           } : {}}
                         >
                           <item.icon className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`} />
@@ -266,7 +267,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
                   <Avatar className="h-8 w-8 shrink-0 ring-2 ring-sidebar-border group-hover:ring-primary/50 transition-all">
                     <AvatarFallback
                       className="text-xs font-bold text-white"
-                      style={{ background: 'linear-gradient(135deg, oklch(0.65 0.25 270), oklch(0.68 0.22 210))' }}
+                      style={{ background: 'linear-gradient(135deg, oklch(0.52 0.24 268), oklch(0.55 0.20 290))' }}
                     >
                       {initials}
                     </AvatarFallback>
@@ -305,7 +306,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
         {isMobile && (
           <div
             className="flex border-b border-border/50 h-14 items-center justify-between px-4 sticky top-0 z-40"
-            style={{ background: 'oklch(0.115 0.018 255 / 0.95)', backdropFilter: 'blur(12px)' }}
+            style={{ background: 'oklch(1.0 0 0 / 0.95)', backdropFilter: 'blur(12px)', borderBottom: '1px solid oklch(0.90 0.008 240)' }}
           >
             <div className="flex items-center gap-3">
               <SidebarTrigger className="h-8 w-8 rounded-xl" />
