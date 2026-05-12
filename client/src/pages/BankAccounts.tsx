@@ -137,7 +137,7 @@ export default function BankAccounts() {
           <p className="text-muted-foreground text-sm mt-1">Gerencie suas contas e acompanhe o saldo</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowTransferModal(true)} className="rounded-xl gap-2" style={{ borderColor: 'oklch(0.35 0.04 255)', background: 'oklch(0.18 0.025 255)' }}>
+          <Button variant="outline" onClick={() => setShowTransferModal(true)} className="rounded-xl gap-2 bg-white border-border hover:bg-muted/50">
             <ArrowLeftRight className="w-4 h-4" />
             Transferir
           </Button>
@@ -149,15 +149,19 @@ export default function BankAccounts() {
       </div>
 
       {/* Total consolidado */}
-      <Card className="border-0 animate-fade-in-up" style={{ background: 'linear-gradient(135deg, oklch(0.18 0.05 255), oklch(0.155 0.04 280))', boxShadow: '0 4px 24px oklch(0.55 0.18 255 / 0.22)' }}>
-        <CardContent className="p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'oklch(0.65 0.10 255)' }}>Saldo Total Consolidado</p>
-          <p className="text-3xl font-bold number-display" style={{ color: totalBalance >= 0 ? 'oklch(0.82 0.16 145)' : 'oklch(0.75 0.18 15)' }}>
-            {formatCurrency(totalBalance)}
-          </p>
-          <p className="text-xs mt-1" style={{ color: 'oklch(0.55 0.06 255)' }}>{accounts?.length ?? 0} conta(s) ativa(s)</p>
-        </CardContent>
-      </Card>
+      <div
+        className="animate-fade-in-up rounded-2xl p-5"
+        style={{
+          background: 'linear-gradient(135deg, oklch(0.52 0.24 268), oklch(0.55 0.20 290))',
+          boxShadow: '0 8px 32px oklch(0.52 0.24 268 / 0.30)',
+        }}
+      >
+        <p className="text-xs font-semibold uppercase tracking-wider mb-1 text-white/70">Saldo Total Consolidado</p>
+        <p className="text-3xl font-bold number-display text-white">
+          {formatCurrency(totalBalance)}
+        </p>
+        <p className="text-xs mt-1 text-white/60">{accounts?.length ?? 0} conta(s) ativa(s)</p>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Lista de contas */}
@@ -178,18 +182,19 @@ export default function BankAccounts() {
               const Icon = info.icon;
               const isSelected = selectedAccountId === acc.id;
               return (
-                <Card
+                <div
                   key={acc.id}
-                  className="cursor-pointer transition-all border"
-                  style={isSelected ? { borderColor: 'oklch(0.55 0.18 255)', background: 'oklch(0.18 0.04 255)', boxShadow: '0 0 0 1px oklch(0.55 0.18 255 / 0.4), 0 4px 16px oklch(0.55 0.18 255 / 0.15)' } : { borderColor: 'oklch(0.26 0.025 255)', background: 'oklch(0.155 0.022 255)' }}
-                  onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = 'oklch(0.40 0.10 255)'; }}
-                  onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = 'oklch(0.26 0.025 255)'; }}
+                  className="cursor-pointer transition-all rounded-2xl border bg-white hover-lift"
+                  style={isSelected
+                    ? { borderColor: 'oklch(0.52 0.24 268)', boxShadow: '0 0 0 2px oklch(0.52 0.24 268 / 0.25), 0 4px 16px oklch(0.52 0.24 268 / 0.12)' }
+                    : { borderColor: 'oklch(0.90 0.010 240)', boxShadow: '0 2px 8px oklch(0.52 0.10 255 / 0.06)' }
+                  }
                   onClick={() => setSelectedAccountId(isSelected ? null : acc.id)}
                 >
-                  <CardContent className="p-4">
+                  <div className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: (acc.color || info.color) + "22" }}>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: (acc.color || info.color) + '22' }}>
                           <Icon className="w-5 h-5" style={{ color: acc.color || info.color }} />
                         </div>
                         <div>
@@ -199,7 +204,7 @@ export default function BankAccounts() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className={`font-bold text-sm ${(acc.balance ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        <p className={`font-bold text-sm ${(acc.balance ?? 0) >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                           {formatCurrency(acc.balance ?? 0)}
                         </p>
                         <div className="flex items-center gap-1 mt-1 justify-end">
@@ -212,14 +217,14 @@ export default function BankAccounts() {
                         </div>
                       </div>
                     </div>
-                    <div className="mt-3 pt-3 border-t border-border/50 flex justify-between text-xs text-muted-foreground">
+                    <div className="mt-3 pt-3 border-t border-muted flex justify-between text-xs text-muted-foreground">
                       <span>Saldo inicial: {formatCurrency(acc.initialBalance)}</span>
-                      <span className="flex items-center gap-1">
+                      <span className="flex items-center gap-1 text-primary font-medium">
                         Ver extrato <ChevronRight className="w-3 h-3" />
                       </span>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               );
             })
           )}

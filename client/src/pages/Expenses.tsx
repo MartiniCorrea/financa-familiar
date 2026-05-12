@@ -463,25 +463,23 @@ export default function Expenses() {
       </div>
 
       {/* Summary */}
-      <Card className="border-0 animate-fade-in-up" style={{ background: 'linear-gradient(135deg, oklch(0.20 0.06 15), oklch(0.165 0.04 350))', boxShadow: '0 4px 24px oklch(0.55 0.22 15 / 0.20)' }}>
-        <CardContent className="p-4">
+      <div className="animate-fade-in-up rounded-2xl p-4" style={{ background: 'linear-gradient(135deg, oklch(0.62 0.22 15), oklch(0.58 0.20 350))', boxShadow: '0 8px 32px oklch(0.62 0.22 15 / 0.25)' }}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'oklch(0.55 0.22 15 / 0.25)' }}>
-                <TrendingDown className="w-5 h-5" style={{ color: 'oklch(0.75 0.18 15)' }} />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/20">
+                <TrendingDown className="w-5 h-5 text-white" />
               </div>
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'oklch(0.65 0.10 15)' }}>Total do Período</p>
-                <p className="text-2xl font-bold number-display" style={{ color: 'oklch(0.82 0.16 15)' }}>{formatCurrency(total)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider text-white/70">Total do Período</p>
+                <p className="text-2xl font-bold number-display text-white">{formatCurrency(total)}</p>
               </div>
             </div>
-            <Badge className="text-xs font-semibold" style={{ background: 'oklch(0.55 0.22 15 / 0.25)', color: 'oklch(0.82 0.16 15)', border: '1px solid oklch(0.55 0.22 15 / 0.30)' }}>{filtered.length} {filtered.length === 1 ? 'despesa' : 'despesas'}</Badge>
+            <Badge className="text-xs font-semibold bg-white/20 text-white border-white/30">{filtered.length} {filtered.length === 1 ? 'despesa' : 'despesas'}</Badge>
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {/* List */}
-      <Card className="border animate-fade-in-up" style={{ background: 'oklch(0.155 0.022 255)', borderColor: 'oklch(0.26 0.025 255)' }}>
+      <Card className="border animate-fade-in-up bg-white">
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">Carregando...</div>
@@ -491,14 +489,14 @@ export default function Expenses() {
               <p className="text-muted-foreground text-sm">Nenhuma despesa encontrada</p>
             </div>
           ) : (
-            <div className="divide-y" style={{ borderColor: 'oklch(0.22 0.025 255)' }}>
+            <div className="divide-y divide-muted">
               {filtered.map(expense => {
                 const isInstallment = (expense.installments ?? 1) > 1;
                 const isRecurring = !!(expense as any).recurringRuleId;
                 const subcatInfo = getSubcatInfo((expense as any).subcategoryId);
                 const subcatColor = subcatInfo?.sub.color || '#6366f1';
                 return (
-                  <div key={expense.id} className="flex items-center justify-between p-4 transition-all group cursor-pointer hover-lift" style={{ '--hover-bg': 'oklch(0.20 0.025 255)' } as any} onMouseEnter={e => (e.currentTarget.style.background = 'oklch(0.18 0.025 255)')} onMouseLeave={e => (e.currentTarget.style.background = '')} onClick={() => openDetail(expense)}>
+                  <div key={expense.id} className="flex items-center justify-between p-4 transition-colors cursor-pointer hover:bg-muted/40" onClick={() => openDetail(expense)}>
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ backgroundColor: subcatColor + '20' }}>
                         <span className="text-sm font-bold" style={{ color: subcatColor }}>{expense.description.charAt(0).toUpperCase()}</span>

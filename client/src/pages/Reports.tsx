@@ -20,8 +20,8 @@ const _cy = new Date().getFullYear();
 const YEARS = Array.from({ length: 8 }, (_, i) => _cy - 5 + i);
 
 const tooltipStyle = {
-  contentStyle: { backgroundColor: 'oklch(0.16 0.025 265)', border: '1px solid oklch(0.25 0.03 265)', borderRadius: '8px' },
-  labelStyle: { color: 'oklch(0.96 0.005 265)', fontWeight: 600 },
+  contentStyle: { backgroundColor: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '8px', boxShadow: '0 4px 16px rgba(0,0,0,0.08)' },
+  labelStyle: { color: '#111827', fontWeight: 600 },
 };
 
 export default function Reports() {

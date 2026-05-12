@@ -486,7 +486,7 @@ export default function CreditCards() {
       {/* Invoice Section */}
       {selectedCard && (
         <div className="space-y-4">
-          <Card className="border animate-fade-in-up" style={{ background: 'oklch(0.155 0.022 255)', borderColor: 'oklch(0.26 0.025 255)' }}>
+          <Card className="border animate-fade-in-up bg-white">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <CardTitle className="flex items-center gap-2" style={{ fontFamily: "'Sora', sans-serif" }}>
