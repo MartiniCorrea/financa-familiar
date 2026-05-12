@@ -102,15 +102,15 @@ export default function Bills() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up">
         <div>
-          <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>Contas</h1>
+          <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Sora', sans-serif", letterSpacing: '-0.02em' }}>Contas</h1>
           <p className="text-muted-foreground text-sm mt-1">Controle de contas a pagar e receber</p>
         </div>
         <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) setForm(emptyForm); }}>
           <DialogTrigger asChild>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <Plus className="w-4 h-4 mr-2" /> Nova Conta
+            <Button className="rounded-xl gap-2" style={{ background: 'linear-gradient(135deg, oklch(0.55 0.18 255), oklch(0.52 0.22 280))', boxShadow: '0 2px 12px oklch(0.55 0.18 255 / 0.35)' }}>
+              <Plus className="w-4 h-4" /> Nova Conta
             </Button>
           </DialogTrigger>
           <DialogContent className="bg-card border-border">
@@ -198,29 +198,29 @@ export default function Bills() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="bg-card border-border">
+      <div className="grid grid-cols-2 gap-4 animate-fade-in-up">
+        <Card className="border-0" style={{ background: 'linear-gradient(135deg, oklch(0.20 0.06 15), oklch(0.165 0.04 350))', boxShadow: '0 4px 20px oklch(0.55 0.22 15 / 0.18)' }}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-red-400/10 flex items-center justify-center shrink-0">
-                <ArrowDownRight className="w-4 h-4 text-red-400" />
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'oklch(0.55 0.22 15 / 0.25)' }}>
+                <ArrowDownRight className="w-4 h-4" style={{ color: 'oklch(0.75 0.18 15)' }} />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">A Pagar</p>
-                <p className="text-lg font-bold text-red-400">{formatCurrency(totalToPay)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'oklch(0.65 0.10 15)' }}>A Pagar</p>
+                <p className="text-lg font-bold number-display" style={{ color: 'oklch(0.82 0.16 15)' }}>{formatCurrency(totalToPay)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-card border-border">
+        <Card className="border-0" style={{ background: 'linear-gradient(135deg, oklch(0.18 0.06 145), oklch(0.155 0.04 165))', boxShadow: '0 4px 20px oklch(0.55 0.20 145 / 0.18)' }}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-400/10 flex items-center justify-center shrink-0">
-                <ArrowUpRight className="w-4 h-4 text-emerald-400" />
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'oklch(0.55 0.20 145 / 0.25)' }}>
+                <ArrowUpRight className="w-4 h-4" style={{ color: 'oklch(0.75 0.18 145)' }} />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">A Receber</p>
-                <p className="text-lg font-bold text-emerald-400">{formatCurrency(totalToReceive)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'oklch(0.65 0.10 145)' }}>A Receber</p>
+                <p className="text-lg font-bold number-display" style={{ color: 'oklch(0.82 0.16 145)' }}>{formatCurrency(totalToReceive)}</p>
               </div>
             </div>
           </CardContent>
@@ -229,21 +229,21 @@ export default function Bills() {
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="bg-card border border-border">
-          <TabsTrigger value="pendente" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <Clock className="w-3.5 h-3.5 mr-1.5" /> Pendentes
+        <TabsList className="rounded-xl p-1" style={{ background: 'oklch(0.155 0.022 255)', border: '1px solid oklch(0.26 0.025 255)' }}>
+          <TabsTrigger value="pendente" className="rounded-lg gap-1.5 text-xs data-[state=active]:text-foreground" style={{ fontWeight: 600 }}>
+            <Clock className="w-3.5 h-3.5" /> Pendentes
           </TabsTrigger>
-          <TabsTrigger value="vencido" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <AlertTriangle className="w-3.5 h-3.5 mr-1.5" /> Vencidas
+          <TabsTrigger value="vencido" className="rounded-lg gap-1.5 text-xs data-[state=active]:text-foreground" style={{ fontWeight: 600 }}>
+            <AlertTriangle className="w-3.5 h-3.5" /> Vencidas
           </TabsTrigger>
-          <TabsTrigger value="pago" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <CheckCircle className="w-3.5 h-3.5 mr-1.5" /> Pagas
+          <TabsTrigger value="pago" className="rounded-lg gap-1.5 text-xs data-[state=active]:text-foreground" style={{ fontWeight: 600 }}>
+            <CheckCircle className="w-3.5 h-3.5" /> Pagas
           </TabsTrigger>
-          <TabsTrigger value="todos" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Todas</TabsTrigger>
+          <TabsTrigger value="todos" className="rounded-lg text-xs data-[state=active]:text-foreground" style={{ fontWeight: 600 }}>Todas</TabsTrigger>
         </TabsList>
 
         <TabsContent value={tab} className="mt-4">
-          <Card className="bg-card border-border">
+          <Card className="border animate-fade-in-up" style={{ background: 'oklch(0.155 0.022 255)', borderColor: 'oklch(0.26 0.025 255)' }}>
             <CardContent className="p-0">
               {isLoading ? (
                 <div className="p-8 text-center text-muted-foreground">Carregando...</div>
@@ -253,12 +253,12 @@ export default function Bills() {
                   <p className="text-muted-foreground text-sm">Nenhuma conta encontrada</p>
                 </div>
               ) : (
-                <div className="divide-y divide-border">
+                <div className="divide-y" style={{ borderColor: 'oklch(0.22 0.025 255)' }}>
                   {bills.map(bill => {
                     const days = getDaysUntilDue(bill.dueDate);
                     const isFromExpense = !!(bill as any).expenseData;
                     return (
-                      <div key={bill.id} className="flex items-center justify-between p-4 hover:bg-accent/20 transition-colors group">
+                      <div key={bill.id} className="flex items-center justify-between p-4 transition-all group" onMouseEnter={e => (e.currentTarget.style.background = 'oklch(0.18 0.025 255)')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
                         <div className="flex items-center gap-3 min-w-0">
                           <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${bill.type === 'pagar' ? 'bg-red-400/10' : 'bg-emerald-400/10'}`}>
                             {isFromExpense

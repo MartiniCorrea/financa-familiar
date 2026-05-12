@@ -122,9 +122,9 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up">
         <div>
-          <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>
+          <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Sora', sans-serif", letterSpacing: '-0.02em' }}>
             Dashboard
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Visão geral das suas finanças</p>
@@ -154,12 +154,12 @@ export default function Dashboard() {
       </div>
 
       {/* Saldo Acumulado Total */}
-      <Card className="bg-gradient-to-r from-primary/10 to-blue-500/10 border-primary/20">
+      <Card className="border-0 overflow-hidden animate-fade-in-up delay-75" style={{ background: 'linear-gradient(135deg, oklch(0.18 0.04 270), oklch(0.155 0.03 240))', boxShadow: '0 4px 32px oklch(0.65 0.25 270 / 0.15), 0 1px 0 oklch(0.65 0.25 270 / 0.20) inset' }}>
         <CardContent className="p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Saldo Total Consolidado</p>
-              <p className={`text-3xl font-bold ${totalBalanceValue >= 0 ? 'text-primary' : 'text-red-400'}`}>
+              <p className={`text-3xl font-bold number-display ${totalBalanceValue >= 0 ? 'gradient-text' : 'text-red-400'}`} style={{ fontSize: '2rem' }}>
                 {formatCurrency(totalBalanceValue)}
               </p>
               {!bankAccountsWithBalance?.length && (
@@ -183,7 +183,7 @@ export default function Dashboard() {
           {bankAccountsWithBalance && bankAccountsWithBalance.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {bankAccountsWithBalance.map((acc: any) => (
-                <div key={acc.id} className="bg-background/40 rounded-xl p-3 flex items-center gap-3">
+                <div key={acc.id} className="rounded-xl p-3 flex items-center gap-3 hover-lift" style={{ background: 'oklch(0.12 0.02 255 / 0.60)', border: '1px solid oklch(0.30 0.03 255 / 0.40)' }}>
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: (acc.color || '#6366f1') + '22' }}>
                     <span className="text-base" style={{ color: acc.color || '#6366f1' }}>&#9679;</span>
                   </div>
@@ -201,18 +201,18 @@ export default function Dashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map(kpi => (
-          <Card key={kpi.title} className="bg-card border-border">
+        {kpis.map((kpi, i) => (
+          <Card key={kpi.title} className={`border hover-lift animate-fade-in-up delay-${[100,150,200,300][i]}`} style={{ background: 'oklch(0.155 0.022 255)', borderColor: 'oklch(0.26 0.025 255)' }}>
             <CardContent className="p-5">
               <div className="flex items-start justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{kpi.title}</p>
-                  <p className={`text-xl font-bold mt-2 ${kpi.color}`}>
+                  <p className="text-[11px] text-muted-foreground font-semibold uppercase tracking-wider">{kpi.title}</p>
+                  <p className={`text-xl font-bold mt-2 number-display ${kpi.color}`}>
                     {kpi.isPercent ? `${(kpi.value as number).toFixed(1)}%` : formatCurrency(kpi.value as number)}
                   </p>
                 </div>
-                <div className={`w-9 h-9 rounded-xl ${kpi.bg} flex items-center justify-center shrink-0 ml-3`}>
-                  <kpi.icon className={`w-4 h-4 ${kpi.color}`} />
+                <div className={`w-10 h-10 rounded-xl ${kpi.bg} flex items-center justify-center shrink-0 ml-3`} style={{ boxShadow: '0 2px 8px oklch(0 0 0 / 0.25)' }}>
+                  <kpi.icon className={`w-4.5 h-4.5 ${kpi.color}`} />
                 </div>
               </div>
             </CardContent>
@@ -222,7 +222,7 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Evolution Chart */}
-        <Card className="xl:col-span-2 bg-card border-border">
+        <Card className="xl:col-span-2 border animate-fade-in-up delay-200" style={{ background: 'oklch(0.155 0.022 255)', borderColor: 'oklch(0.26 0.025 255)' }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold text-foreground">Evolução Mensal</CardTitle>
           </CardHeader>
@@ -265,7 +265,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Expense by Category Pie */}
-        <Card className="bg-card border-border">
+        <Card className="border animate-fade-in-up delay-300" style={{ background: 'oklch(0.155 0.022 255)', borderColor: 'oklch(0.26 0.025 255)' }}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold text-foreground">Despesas por Categoria</CardTitle>
           </CardHeader>
@@ -309,7 +309,7 @@ export default function Dashboard() {
 
       {/* Card 50/30/20 */}
       {groupSummary && groupSummary.length > 0 && (
-        <Card className="bg-card border-border">
+        <Card className="border animate-fade-in-up" style={{ background: 'oklch(0.155 0.022 255)', borderColor: 'oklch(0.26 0.025 255)' }}>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
             <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
               <Layers className="w-4 h-4 text-primary" />
@@ -355,14 +355,14 @@ export default function Dashboard() {
 
       {/* Alertas de Vencimento Próximo */}
       {upcomingAlerts && upcomingAlerts.length > 0 && (
-        <Card className="border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30">
+        <Card className="border animate-fade-in-up" style={{ background: 'oklch(0.16 0.04 60 / 0.30)', borderColor: 'oklch(0.72 0.22 50 / 0.35)' }}>
           <CardHeader className="pb-2 flex flex-row items-center justify-between">
-            <CardTitle className="text-base font-semibold text-amber-800 dark:text-amber-300 flex items-center gap-2">
-              <BellRing className="w-4 h-4 text-amber-500 animate-pulse" />
+            <CardTitle className="text-base font-semibold flex items-center gap-2" style={{ color: 'oklch(0.80 0.18 75)' }}>
+              <BellRing className="w-4 h-4 animate-pulse" style={{ color: 'oklch(0.72 0.22 50)' }} />
               Alertas de Vencimento
-              <Badge className="bg-amber-500 text-white text-xs ml-1">{upcomingAlerts.length}</Badge>
+              <Badge className="text-white text-xs ml-1" style={{ background: 'oklch(0.72 0.22 50)' }}>{upcomingAlerts.length}</Badge>
             </CardTitle>
-            <Button variant="ghost" size="sm" className="text-amber-700 dark:text-amber-400 text-xs" onClick={() => setLocation('/contas')}>
+            <Button variant="ghost" size="sm" className="text-xs" style={{ color: 'oklch(0.72 0.22 50)' }} onClick={() => setLocation('/contas')}>
               Gerenciar <ChevronRight className="w-3 h-3 ml-1" />
             </Button>
           </CardHeader>
@@ -400,7 +400,7 @@ export default function Dashboard() {
       )}
 
       {/* Pending Bills */}
-      <Card className="bg-card border-border">
+      <Card className="border animate-fade-in-up" style={{ background: 'oklch(0.155 0.022 255)', borderColor: 'oklch(0.26 0.025 255)' }}>
         <CardHeader className="pb-2 flex flex-row items-center justify-between">
           <CardTitle className="text-base font-semibold text-foreground flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-400" />

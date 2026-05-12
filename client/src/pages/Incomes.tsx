@@ -141,15 +141,15 @@ export default function Incomes() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Receitas</h1>
+          <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Sora', sans-serif", letterSpacing: '-0.02em' }}>Receitas</h1>
           <p className="text-muted-foreground text-sm mt-1">Gerencie todas as suas entradas financeiras</p>
         </div>
         <Dialog open={open} onOpenChange={v => { setOpen(v); if (!v) { setEditId(null); setForm(emptyForm); } }}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" /> Nova Receita
+            <Button className="rounded-xl gap-2" style={{ background: 'linear-gradient(135deg, oklch(0.55 0.20 145), oklch(0.58 0.18 165))', boxShadow: '0 2px 12px oklch(0.55 0.20 145 / 0.35)' }}>
+              <Plus className="w-4 h-4" /> Nova Receita
             </Button>
           </DialogTrigger>
           <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -289,25 +289,25 @@ export default function Incomes() {
       </div>
 
       {/* Summary */}
-      <Card>
+      <Card className="border-0 animate-fade-in-up" style={{ background: 'linear-gradient(135deg, oklch(0.18 0.06 145), oklch(0.155 0.04 165))', boxShadow: '0 4px 24px oklch(0.55 0.20 145 / 0.20)' }}>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-400/10 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-emerald-400" />
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'oklch(0.55 0.20 145 / 0.25)' }}>
+                <TrendingUp className="w-5 h-5" style={{ color: 'oklch(0.75 0.18 145)' }} />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Total do Período</p>
-                <p className="text-2xl font-bold text-emerald-400">{formatCurrency(total)}</p>
+                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'oklch(0.65 0.10 145)' }}>Total do Período</p>
+                <p className="text-2xl font-bold number-display" style={{ color: 'oklch(0.82 0.16 145)' }}>{formatCurrency(total)}</p>
               </div>
             </div>
-            <Badge variant="secondary">{filtered.length} {filtered.length === 1 ? 'receita' : 'receitas'}</Badge>
+            <Badge className="text-xs font-semibold" style={{ background: 'oklch(0.55 0.20 145 / 0.25)', color: 'oklch(0.82 0.16 145)', border: '1px solid oklch(0.55 0.20 145 / 0.30)' }}>{filtered.length} {filtered.length === 1 ? 'receita' : 'receitas'}</Badge>
           </div>
         </CardContent>
       </Card>
 
       {/* List */}
-      <Card>
+      <Card className="border animate-fade-in-up" style={{ background: 'oklch(0.155 0.022 255)', borderColor: 'oklch(0.26 0.025 255)' }}>
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">Carregando...</div>
@@ -318,12 +318,12 @@ export default function Incomes() {
               <p className="text-muted-foreground/60 text-xs mt-1">Adicione sua primeira receita clicando no botão acima</p>
             </div>
           ) : (
-            <div className="divide-y divide-border">
+            <div className="divide-y" style={{ borderColor: 'oklch(0.22 0.025 255)' }}>
               {filtered.map(income => {
                 const cat = getIncomeCategoryInfo(income.category);
                 const isRecurring = !!(income as any).recurringRuleId;
                 return (
-                  <div key={income.id} className="flex items-center justify-between p-4 hover:bg-accent/20 transition-colors group cursor-pointer" onClick={() => openDetail(income)}>
+                  <div key={income.id} className="flex items-center justify-between p-4 transition-all group cursor-pointer" onMouseEnter={e => (e.currentTarget.style.background = 'oklch(0.18 0.025 255)')} onMouseLeave={e => (e.currentTarget.style.background = '')} onClick={() => openDetail(income)}>
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center text-base shrink-0" style={{ backgroundColor: cat.color + '20' }}>
                         {cat.icon}

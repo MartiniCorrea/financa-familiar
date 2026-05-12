@@ -390,14 +390,14 @@ export default function CreditCards() {
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-fade-in-up">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Cartões de Crédito</h1>
+          <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Sora', sans-serif", letterSpacing: '-0.02em' }}>Cartões de Crédito</h1>
           <p className="text-muted-foreground text-sm mt-1">Gerencie seus cartões e faturas</p>
         </div>
         <Dialog open={cardOpen} onOpenChange={setCardOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="w-4 h-4" /> Novo Cartão</Button>
+            <Button className="rounded-xl gap-2" style={{ background: 'linear-gradient(135deg, oklch(0.52 0.22 280), oklch(0.55 0.18 300))', boxShadow: '0 2px 12px oklch(0.52 0.22 280 / 0.35)' }}><Plus className="w-4 h-4" /> Novo Cartão</Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>Adicionar Cartão</DialogTitle></DialogHeader>
@@ -442,8 +442,8 @@ export default function CreditCards() {
           {cards.map(card => (
             <div key={card.id}
               onClick={() => setSelectedCardId(selectedCardId === card.id ? null : card.id)}
-              className={`relative rounded-xl p-5 cursor-pointer transition-all border-2 ${selectedCardId === card.id ? 'border-white/50 scale-[1.02]' : 'border-transparent hover:scale-[1.01]'}`}
-              style={{ background: `linear-gradient(135deg, ${card.color || '#6366f1'}, ${card.color || '#6366f1'}99)` }}>
+              className={`relative rounded-2xl p-5 cursor-pointer transition-all ${selectedCardId === card.id ? 'scale-[1.02]' : 'hover:scale-[1.01]'}`}
+              style={{ background: `linear-gradient(135deg, ${card.color || '#6366f1'}ee, ${card.color || '#6366f1'}88)`, boxShadow: selectedCardId === card.id ? `0 8px 32px ${card.color || '#6366f1'}55, 0 0 0 2px white` : `0 4px 20px ${card.color || '#6366f1'}33`, backdropFilter: 'blur(12px)' }}>
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <p className="text-white/70 text-xs uppercase tracking-wider">{card.bank || 'Cartão'}</p>
@@ -486,11 +486,11 @@ export default function CreditCards() {
       {/* Invoice Section */}
       {selectedCard && (
         <div className="space-y-4">
-          <Card>
+          <Card className="border animate-fade-in-up" style={{ background: 'oklch(0.155 0.022 255)', borderColor: 'oklch(0.26 0.025 255)' }}>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between flex-wrap gap-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Receipt className="w-5 h-5" />
+                <CardTitle className="flex items-center gap-2" style={{ fontFamily: "'Sora', sans-serif" }}>
+                  <Receipt className="w-5 h-5" style={{ color: selectedCard.color || 'oklch(0.65 0.18 280)' }} />
                   Fatura — {selectedCard.name}
                 </CardTitle>
                 <div className="flex items-center gap-2">
@@ -503,10 +503,10 @@ export default function CreditCards() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-3 p-4 rounded-lg bg-muted/50">
+              <div className="flex items-center justify-between flex-wrap gap-3 p-4 rounded-xl" style={{ background: `linear-gradient(135deg, ${selectedCard.color || '#6366f1'}18, ${selectedCard.color || '#6366f1'}08)`, border: `1px solid ${selectedCard.color || '#6366f1'}30` }}>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wider">Total da Fatura</p>
-                  <p className="text-2xl font-bold text-foreground">
+                  <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: `${selectedCard.color || '#6366f1'}aa` }}>Total da Fatura</p>
+                  <p className="text-2xl font-bold number-display" style={{ color: selectedCard.color || 'oklch(0.82 0.16 280)' }}>
                     {formatCurrency(currentInvoice ? parseFloat(String(currentInvoice.totalAmount)) : 0)}
                   </p>
                   {currentInvoice?.dueDate && (

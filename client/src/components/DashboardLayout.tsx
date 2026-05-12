@@ -41,6 +41,7 @@ import {
   Users,
   Settings,
   Wallet,
+  ChevronRight,
 } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
@@ -109,7 +110,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (loading) return <DashboardLayoutSkeleton />;
 
   if (!user) {
-    // Redirect to login page
     if (typeof window !== 'undefined') {
       window.location.replace('/login');
     }
@@ -167,43 +167,63 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
     };
   }, [isResizing, setSidebarWidth]);
 
+  const initials = user?.name
+    ? user.name.split(' ').map((n: string) => n[0]).slice(0, 2).join('').toUpperCase()
+    : 'U';
+
   return (
     <>
       <div className="relative" ref={sidebarRef}>
-        <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar" disableTransition={isResizing}>
-          {/* Header */}
-          <SidebarHeader className="h-16 justify-center px-3 border-b border-sidebar-border">
+        <Sidebar
+          collapsible="icon"
+          className="border-r border-sidebar-border"
+          style={{ background: 'var(--sidebar)' }}
+          disableTransition={isResizing}
+        >
+          {/* ── Header ── */}
+          <SidebarHeader className="h-16 justify-center px-3 border-b border-sidebar-border/60">
             <div className="flex items-center gap-3">
               <button
                 onClick={toggleSidebar}
-                className="h-9 w-9 flex items-center justify-center hover:bg-sidebar-accent rounded-lg transition-colors shrink-0"
+                className="h-9 w-9 flex items-center justify-center hover:bg-sidebar-accent rounded-xl transition-all duration-200 shrink-0 group"
                 aria-label="Toggle navigation"
               >
-                <PanelLeft className="h-4 w-4 text-sidebar-foreground/60" />
+                <PanelLeft className="h-4 w-4 text-sidebar-foreground/50 group-hover:text-sidebar-foreground transition-colors" />
               </button>
               {!isCollapsed && (
-                <div className="flex items-center gap-2 min-w-0">
-                  <div className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
-                    <DollarSign className="w-4 h-4 text-primary" />
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 animate-pulse-glow"
+                    style={{ background: 'linear-gradient(135deg, oklch(0.65 0.25 270), oklch(0.68 0.22 210))' }}
+                  >
+                    <DollarSign className="w-4 h-4 text-white" />
                   </div>
-                  <span className="font-bold tracking-tight text-sidebar-foreground truncate" style={{ fontFamily: "'Playfair Display', serif" }}>
-                    FinançaFamiliar
-                  </span>
+                  <div className="min-w-0">
+                    <span
+                      className="font-bold tracking-tight text-sidebar-foreground truncate block text-sm"
+                      style={{ fontFamily: "'Sora', sans-serif", letterSpacing: '-0.01em' }}
+                    >
+                      FinançaFamiliar
+                    </span>
+                    <span className="text-[10px] text-sidebar-foreground/40 font-medium tracking-wider uppercase">
+                      Controle Financeiro
+                    </span>
+                  </div>
                 </div>
               )}
             </div>
           </SidebarHeader>
 
-          {/* Navigation */}
-          <SidebarContent className="gap-0 py-2">
-            {menuGroups.map(group => (
-              <div key={group.label} className="px-2 py-1">
+          {/* ── Navigation ── */}
+          <SidebarContent className="gap-0 py-3 overflow-x-hidden">
+            {menuGroups.map((group, gi) => (
+              <div key={group.label} className={`px-2 ${gi > 0 ? 'mt-1' : ''}`}>
                 {!isCollapsed && (
-                  <div className="text-xs font-semibold text-sidebar-foreground/40 uppercase tracking-wider px-2 mb-1 h-6 flex items-center">
+                  <div className="text-[10px] font-bold text-sidebar-foreground/30 uppercase tracking-[0.12em] px-3 mb-1.5 h-5 flex items-center">
                     {group.label}
                   </div>
                 )}
-                <SidebarMenu>
+                <SidebarMenu className="gap-0.5">
                   {group.items.map(item => {
                     const isActive = location === item.path;
                     return (
@@ -212,10 +232,23 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
                           isActive={isActive}
                           onClick={() => setLocation(item.path)}
                           tooltip={item.label}
-                          className={`h-9 transition-all rounded-lg ${isActive ? 'bg-primary/15 text-primary font-medium' : 'text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent'}`}
+                          className={`
+                            h-9 rounded-xl transition-all duration-200 relative group
+                            ${isActive
+                              ? 'text-white font-semibold'
+                              : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/80'
+                            }
+                          `}
+                          style={isActive ? {
+                            background: 'linear-gradient(135deg, oklch(0.65 0.25 270 / 0.85), oklch(0.68 0.22 210 / 0.70))',
+                            boxShadow: '0 2px 12px oklch(0.65 0.25 270 / 0.30)',
+                          } : {}}
                         >
-                          <item.icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-primary' : ''}`} />
-                          <span>{item.label}</span>
+                          <item.icon className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`} />
+                          <span className="text-[13px]">{item.label}</span>
+                          {isActive && !isCollapsed && (
+                            <ChevronRight className="h-3 w-3 ml-auto opacity-60" />
+                          )}
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     );
@@ -225,20 +258,23 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
             ))}
           </SidebarContent>
 
-          {/* Footer */}
-          <SidebarFooter className="p-3 border-t border-sidebar-border">
+          {/* ── Footer ── */}
+          <SidebarFooter className="p-3 border-t border-sidebar-border/60">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-sidebar-accent transition-colors w-full text-left focus:outline-none">
-                  <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarFallback className="text-xs font-semibold bg-primary/20 text-primary">
-                      {user?.name?.charAt(0).toUpperCase() ?? 'U'}
+                <button className="flex items-center gap-3 rounded-xl px-2 py-2.5 hover:bg-sidebar-accent transition-all duration-200 w-full text-left focus:outline-none group">
+                  <Avatar className="h-8 w-8 shrink-0 ring-2 ring-sidebar-border group-hover:ring-primary/50 transition-all">
+                    <AvatarFallback
+                      className="text-xs font-bold text-white"
+                      style={{ background: 'linear-gradient(135deg, oklch(0.65 0.25 270), oklch(0.68 0.22 210))' }}
+                    >
+                      {initials}
                     </AvatarFallback>
                   </Avatar>
                   {!isCollapsed && (
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate leading-none text-sidebar-foreground">{user?.name || "Usuário"}</p>
-                      <p className="text-xs text-sidebar-foreground/50 truncate mt-1">{user?.email || ""}</p>
+                      <p className="text-[13px] font-semibold truncate leading-none text-sidebar-foreground">{user?.name || "Usuário"}</p>
+                      <p className="text-[11px] text-sidebar-foreground/40 truncate mt-0.5">{user?.email || ""}</p>
                     </div>
                   )}
                 </button>
@@ -257,7 +293,7 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
         {/* Resize handle */}
         {!isCollapsed && (
           <div
-            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/30 transition-colors"
+            className="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/40 transition-colors"
             style={{ zIndex: 50 }}
             onMouseDown={() => setIsResizing(true)}
           />
@@ -267,10 +303,13 @@ function DashboardLayoutContent({ children, setSidebarWidth }: { children: React
       <SidebarInset className="bg-background">
         {/* Mobile header */}
         {isMobile && (
-          <div className="flex border-b border-border h-14 items-center justify-between bg-background px-4 sticky top-0 z-40">
+          <div
+            className="flex border-b border-border/50 h-14 items-center justify-between px-4 sticky top-0 z-40"
+            style={{ background: 'oklch(0.115 0.018 255 / 0.95)', backdropFilter: 'blur(12px)' }}
+          >
             <div className="flex items-center gap-3">
-              <SidebarTrigger className="h-8 w-8 rounded-lg" />
-              <span className="font-semibold text-foreground">{activeItem?.label ?? "Menu"}</span>
+              <SidebarTrigger className="h-8 w-8 rounded-xl" />
+              <span className="font-semibold text-foreground text-sm">{activeItem?.label ?? "Menu"}</span>
             </div>
           </div>
         )}

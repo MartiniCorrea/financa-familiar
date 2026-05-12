@@ -129,19 +129,19 @@ export default function BankAccounts() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between animate-fade-in-up">
         <div>
-          <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Playfair Display', serif" }}>
+          <h1 className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Sora', sans-serif", letterSpacing: '-0.02em' }}>
             Contas Bancárias
           </h1>
           <p className="text-muted-foreground text-sm mt-1">Gerencie suas contas e acompanhe o saldo</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowTransferModal(true)} className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setShowTransferModal(true)} className="rounded-xl gap-2" style={{ borderColor: 'oklch(0.35 0.04 255)', background: 'oklch(0.18 0.025 255)' }}>
             <ArrowLeftRight className="w-4 h-4" />
             Transferir
           </Button>
-          <Button onClick={openCreate} className="flex items-center gap-2">
+          <Button onClick={openCreate} className="rounded-xl gap-2" style={{ background: 'linear-gradient(135deg, oklch(0.55 0.18 255), oklch(0.52 0.22 280))', boxShadow: '0 2px 12px oklch(0.55 0.18 255 / 0.35)' }}>
             <Plus className="w-4 h-4" />
             Nova Conta
           </Button>
@@ -149,13 +149,13 @@ export default function BankAccounts() {
       </div>
 
       {/* Total consolidado */}
-      <Card className="bg-gradient-to-r from-primary/10 to-blue-500/10 border-primary/20">
+      <Card className="border-0 animate-fade-in-up" style={{ background: 'linear-gradient(135deg, oklch(0.18 0.05 255), oklch(0.155 0.04 280))', boxShadow: '0 4px 24px oklch(0.55 0.18 255 / 0.22)' }}>
         <CardContent className="p-5">
-          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide mb-1">Saldo Total Consolidado</p>
-          <p className={`text-3xl font-bold ${totalBalance >= 0 ? "text-primary" : "text-red-400"}`}>
+          <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: 'oklch(0.65 0.10 255)' }}>Saldo Total Consolidado</p>
+          <p className="text-3xl font-bold number-display" style={{ color: totalBalance >= 0 ? 'oklch(0.82 0.16 145)' : 'oklch(0.75 0.18 15)' }}>
             {formatCurrency(totalBalance)}
           </p>
-          <p className="text-xs text-muted-foreground mt-1">{accounts?.length ?? 0} conta(s) ativa(s)</p>
+          <p className="text-xs mt-1" style={{ color: 'oklch(0.55 0.06 255)' }}>{accounts?.length ?? 0} conta(s) ativa(s)</p>
         </CardContent>
       </Card>
 
@@ -180,7 +180,10 @@ export default function BankAccounts() {
               return (
                 <Card
                   key={acc.id}
-                  className={`cursor-pointer transition-all border-2 ${isSelected ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40"}`}
+                  className="cursor-pointer transition-all border"
+                  style={isSelected ? { borderColor: 'oklch(0.55 0.18 255)', background: 'oklch(0.18 0.04 255)', boxShadow: '0 0 0 1px oklch(0.55 0.18 255 / 0.4), 0 4px 16px oklch(0.55 0.18 255 / 0.15)' } : { borderColor: 'oklch(0.26 0.025 255)', background: 'oklch(0.155 0.022 255)' }}
+                  onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = 'oklch(0.40 0.10 255)'; }}
+                  onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = 'oklch(0.26 0.025 255)'; }}
                   onClick={() => setSelectedAccountId(isSelected ? null : acc.id)}
                 >
                   <CardContent className="p-4">
