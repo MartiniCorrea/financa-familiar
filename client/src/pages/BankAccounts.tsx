@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { formatCurrency, formatDate } from "@/lib/finance";
+import { formatCurrency, formatDate, getTodayString } from "@/lib/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,7 +43,7 @@ const emptyForm = {
 
 type FormState = typeof emptyForm;
 
-const emptyTransferForm = { fromAccountId: '', toAccountId: '', amount: '', description: '', date: new Date().toISOString().split('T')[0], notes: '' };
+const emptyTransferForm = { fromAccountId: '', toAccountId: '', amount: '', description: '', date: getTodayString(), notes: '' };
 
 export default function BankAccounts() {
   const [showModal, setShowModal] = useState(false);

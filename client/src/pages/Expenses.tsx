@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { formatCurrency, formatDate, getCurrentMonth, getCurrentYear, getTodayString } from "@/lib/finance";
+import { formatCurrency, formatDate, getCurrentMonth, getCurrentYear, getTodayString, dateToInputString } from "@/lib/finance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -170,7 +170,7 @@ export default function Expenses() {
     setEditId(expense.id);
     setForm({
       description: expense.description, amount: expense.amount,
-      date: typeof expense.date === 'string' ? expense.date : new Date(expense.date).toISOString().split('T')[0],
+      date: dateToInputString(expense.date),
       paymentMethod: expense.paymentMethod ?? 'outros',
       installments: String(expense.installments ?? 1),
       notes: expense.notes ?? '',

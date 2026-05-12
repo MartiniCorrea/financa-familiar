@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Fuel, Trash2, TrendingDown } from "lucide-react";
-import { formatCurrency } from "@/lib/finance";
+import { formatCurrency, getTodayString } from "@/lib/finance";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 const FUEL_TYPES = [
@@ -26,7 +26,7 @@ export default function FuelHistory() {
   const [form, setForm] = useState({
     gasStationName: "", fuelType: "gasolina_comum" as any,
     pricePerLiter: "", liters: "", totalAmount: "", mileage: "",
-    recordedAt: new Date().toISOString().split("T")[0], notes: "",
+    recordedAt: getTodayString(), notes: "",
     subcategoryId: "", // subcategoria 50/30/20 para despesa automática
   });
 
@@ -38,7 +38,7 @@ export default function FuelHistory() {
   const { data: stations = [] } = trpc.fuelHistory.stations.useQuery();
 
   const createMutation = trpc.fuelHistory.create.useMutation({
-    onSuccess: () => { toast.success("Abastecimento registrado! Despesa lançada automaticamente."); setOpen(false); setForm({ gasStationName: "", fuelType: "gasolina_comum", pricePerLiter: "", liters: "", totalAmount: "", mileage: "", recordedAt: new Date().toISOString().split("T")[0], notes: "", subcategoryId: "" }); refetch(); },
+    onSuccess: () => { toast.success("Abastecimento registrado! Despesa lançada automaticamente."); setOpen(false); setForm({ gasStationName: "", fuelType: "gasolina_comum", pricePerLiter: "", liters: "", totalAmount: "", mileage: "", recordedAt: getTodayString(), notes: "", subcategoryId: "" }); refetch(); },
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.fuelHistory.delete.useMutation({

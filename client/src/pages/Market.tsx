@@ -14,7 +14,7 @@ import {
   Plus, Trash2, ShoppingCart, Store, TrendingDown, TrendingUp, Search,
   CheckCircle2, Circle, Package, BarChart2, ChevronDown, ChevronUp, Tag, Pencil
 } from "lucide-react";
-import { formatCurrency, formatDate } from "@/lib/finance";
+import { formatCurrency, formatDate, getTodayString } from "@/lib/finance";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 const ITEM_UNITS = ["un", "kg", "g", "L", "ml", "cx", "pct", "dz"];
@@ -39,7 +39,7 @@ export default function Market() {
   // Formulário de nova ida ao mercado
   const [tripForm, setTripForm] = useState({
     supermarketId: "",
-    shoppingDate: new Date().toISOString().split("T")[0],
+    shoppingDate: getTodayString(),
     notes: "",
     subcategoryId: "", // subcategoria 50/30/20 para despesa automática
   });
@@ -172,7 +172,7 @@ export default function Market() {
         : '';
       toast.success(`Compra salva! Total: ${formatCurrency(totalActual)}${subcatName ? ` — despesa lançada em "${subcatName}"` : ' — despesa automática criada'}`);
       setOpenTrip(false);
-      setTripForm({ supermarketId: "", shoppingDate: new Date().toISOString().split("T")[0], notes: "", subcategoryId: "" });
+      setTripForm({ supermarketId: "", shoppingDate: getTodayString(), notes: "", subcategoryId: "" });
       setTripItems([{ id: "1", name: "", quantity: "1", unit: "un", actualPrice: "" }]);
       utils.priceHistory.products.invalidate();
       utils.priceHistory.list.invalidate();

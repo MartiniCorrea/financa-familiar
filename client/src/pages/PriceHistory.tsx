@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Tag, TrendingDown, TrendingUp, Store, Trash2, BarChart2 } from "lucide-react";
-import { formatCurrency } from "@/lib/finance";
+import { formatCurrency, getTodayString } from "@/lib/finance";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 export default function PriceHistory() {
@@ -17,7 +17,7 @@ export default function PriceHistory() {
   const [selectedProduct, setSelectedProduct] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [supermarketOpen, setSupermarketOpen] = useState(false);
-  const [form, setForm] = useState({ productName: "", supermarketId: "", price: "", unit: "un", recordedAt: new Date().toISOString().split("T")[0] });
+  const [form, setForm] = useState({ productName: "", supermarketId: "", price: "", unit: "un", recordedAt: getTodayString() });
   const [supermarketForm, setSupermarketForm] = useState({ name: "", address: "" });
 
   const { data: records = [], refetch } = trpc.priceHistory.list.useQuery(search ? { productName: search } : undefined);
@@ -29,7 +29,7 @@ export default function PriceHistory() {
   );
 
   const createMutation = trpc.priceHistory.create.useMutation({
-    onSuccess: () => { toast.success("Preço registrado!"); setOpen(false); setForm({ productName: "", supermarketId: "", price: "", unit: "un", recordedAt: new Date().toISOString().split("T")[0] as string }); refetch(); },
+    onSuccess: () => { toast.success("Preço registrado!"); setOpen(false); setForm({ productName: "", supermarketId: "", price: "", unit: "un", recordedAt: getTodayString() as string }); refetch(); },
     onError: (e) => toast.error(e.message),
   });
   const deleteMutation = trpc.priceHistory.delete.useMutation({

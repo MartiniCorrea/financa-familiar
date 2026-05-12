@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { formatCurrency, getTodayString, getCurrentMonth, getCurrentYear } from "@/lib/finance";
+import { formatCurrency, getTodayString, getCurrentMonth, getCurrentYear, dateToInputString, toLocalDate } from "@/lib/finance";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,19 +16,11 @@ import { CsvImportModal } from "@/components/CsvImportModal";
 
 const CARD_COLORS = ['#6366f1', '#f59e0b', '#22c55e', '#ef4444', '#06b6d4', '#ec4899', '#8b5cf6', '#d97706'];
 
-// Formata datas do banco (podem vir como Date, string ISO ou string YYYY-MM-DD)
+// Formata datas do banco usando fuso local (evita problema de UTC offset)
 function formatDbDate(dateVal: any): string {
   if (!dateVal) return '';
-  if (dateVal instanceof Date) {
-    return dateVal.toLocaleDateString('pt-BR');
-  }
-  const s = String(dateVal);
-  // Se for YYYY-MM-DD, adiciona T12:00:00 para evitar problema de timezone
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-    return new Date(s + 'T12:00:00').toLocaleDateString('pt-BR');
-  }
-  const d = new Date(s);
-  return isNaN(d.getTime()) ? '' : d.toLocaleDateString('pt-BR');
+  const d = toLocalDate(dateVal);
+  return d ? d.toLocaleDateString('pt-BR') : '';
 }
 const MONTHS = Array.from({ length: 12 }, (_, i) => {
   const d = new Date(2024, i, 1);
@@ -205,8 +197,8 @@ export default function CreditCards() {
       purchaseDate: typeof item.purchaseDate === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.purchaseDate)
         ? item.purchaseDate
         : item.purchaseDate instanceof Date
-          ? item.purchaseDate.toISOString().split('T')[0]
-          : String(item.purchaseDate).split('T')[0],
+          ? dateToInputString(item.purchaseDate)
+          : dateToInputString(String(item.purchaseDate).split('T')[0]),
       installments: String(item.totalInstallments || 1),
       notes: item.notes || '',
       isRecurring: false,

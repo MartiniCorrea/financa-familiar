@@ -1,5 +1,5 @@
 import { trpc } from "@/lib/trpc";
-import { formatCurrency, formatDate, getIncomeCategoryInfo, INCOME_CATEGORIES, getCurrentMonth, getCurrentYear, getTodayString } from "@/lib/finance";
+import { formatCurrency, formatDate, getIncomeCategoryInfo, INCOME_CATEGORIES, getCurrentMonth, getCurrentYear, getTodayString, dateToInputString } from "@/lib/finance";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -129,7 +129,7 @@ export default function Incomes() {
       description: income.description,
       amount: income.amount,
       category: income.category,
-      date: typeof income.date === 'string' ? income.date : new Date(income.date).toISOString().split('T')[0],
+      date: dateToInputString(income.date),
       notes: income.notes ?? '',
       bankAccountId: income.bankAccountId ? String(income.bankAccountId) : '',
       isRecurring: false,

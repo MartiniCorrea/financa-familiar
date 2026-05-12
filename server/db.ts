@@ -1292,7 +1292,11 @@ export async function generatePendingRecurringEntries(userId: number) {
     while (nextDate <= today) {
       if (endDate && nextDate > endDate) break;
 
-      const dateStr = nextDate.toISOString().split('T')[0];
+      // Usar fuso local para evitar que UTC-3 gere o dia anterior
+      const _y = nextDate.getFullYear();
+      const _m = String(nextDate.getMonth() + 1).padStart(2, '0');
+      const _d = String(nextDate.getDate()).padStart(2, '0');
+      const dateStr = `${_y}-${_m}-${_d}`;
 
       if (rule.type === 'expense') {
         await db.insert(expenses).values({

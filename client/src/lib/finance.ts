@@ -9,21 +9,54 @@ export function parseCurrency(value: string): number {
   return parseFloat(value.replace(/[R$\s.]/g, '').replace(',', '.')) || 0;
 }
 
-// ─── Date Formatting ──────────────────────────────────────────────────────────
+// ─── Date Formatting ─────────────────────────────────────────────────────────────
+/**
+ * Converte qualquer valor de data para um objeto Date no fuso local.
+ * Strings no formato YYYY-MM-DD são interpretadas como data local (não UTC).
+ * Objetos Date vindos do MySQL via superjson já têm offset UTC embutido;
+ * usamos getFullYear/getMonth/getDate para extrair a data no fuso local.
+ */
+export function toLocalDate(date: string | Date | null | undefined): Date | null {
+  if (!date) return null;
+  if (typeof date === 'string') {
+    // 'YYYY-MM-DD' → interpretar como local (adicionar T00:00:00 sem Z)
+    const match = date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+    return new Date(date);
+  }
+  // Date object: extrair componentes no fuso local
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
 export function formatDate(date: string | Date | null | undefined): string {
-  if (!date) return '-';
-  const d = typeof date === 'string' ? new Date(date + 'T00:00:00') : date;
+  const d = toLocalDate(date);
+  if (!d) return '-';
   return d.toLocaleDateString('pt-BR');
 }
 
 export function formatDateShort(date: string | Date | null | undefined): string {
-  if (!date) return '-';
-  const d = typeof date === 'string' ? new Date(date + 'T00:00:00') : date;
+  const d = toLocalDate(date);
+  if (!d) return '-';
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
+/** Retorna a data de hoje como string YYYY-MM-DD no fuso local */
 export function getTodayString(): string {
-  return new Date().toISOString().split('T')[0];
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Converte um Date (possivelmente UTC do MySQL) para string YYYY-MM-DD no fuso local */
+export function dateToInputString(date: string | Date | null | undefined): string {
+  const d = toLocalDate(date);
+  if (!d) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
 export function getCurrentMonth(): number {
